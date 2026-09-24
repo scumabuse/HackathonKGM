@@ -464,6 +464,17 @@ const en = {
     copiedDesc: "Review it before running it in your environment.",
   },
   settings: {
+    pageTitle: "Analysis settings",
+    pageSub: "Thresholds, the risk scale and rule weights. Weights and the scale show up live in the preview; thresholds apply after a re-score.",
+    system: "System",
+    scale: "Risk scale",
+    scaleSub: "Where each object risk level starts · drag the three markers",
+    preview: "Live preview",
+    previewSub: "AD Security Score with these settings, computed on the latest scan",
+    previewDraft: "With these settings",
+    afterRescore: "Applies after a re-score — not in the preview",
+    enabledLater: "Re-enabled rules add findings only after a re-score",
+    changes: plural({ one: "{n} change", other: "{n} changes" }),
     thresholds: "Detection thresholds",
     thresholdsSub: "Changing a threshold changes which rules match — re-score to apply",
     fields: {

@@ -45,7 +45,7 @@ export function FindingDetailSheet({ finding, onOpenChange }: { finding: Finding
                 <span className="font-mono">{f.rule_id}</span>
                 <span>{category(f.category)}</span>
               </div>
-              <SheetTitle className="text-20 font-semibold text-fg">{f.title}</SheetTitle>
+              <SheetTitle className="display text-28">{f.title}</SheetTitle>
               <SheetDescription className="text-14 text-fg-2">{f.description}</SheetDescription>
             </header>
 

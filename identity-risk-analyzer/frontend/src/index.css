@@ -3,49 +3,51 @@
 @tailwind utilities;
 
 /*
-  Identity Risk Analyzer — a calm security-operations console.
+  Identity Risk Analyzer — a calm, official, editorial console.
 
-  Surfaces separate zones by elevation (base → raised → overlay), not by borders; borders are hairlines.
-  Text has three levels only. ONE accent (cool cyan) is reserved for the primary action, the active nav item
-  and focus. Risk colors are a separate semantic system used only for risk data and always carry a label.
+  Warm paper background, white cards with a hairline and a soft shadow, a display serif for headings and
+  Inter for everything else. Text has three levels only. The ONE accent is ink (near-black): primary action,
+  active nav item and focus. A muted burgundy ("brand") is decoration only — kicker dots, step numerals, the
+  wordmark — never data. Risk colors are a separate semantic system used only for risk data and always carry
+  a label.
 
-  Dark is the primary theme (.dark on <html>, set before first paint by index.html). The light theme uses the
-  same token names and meets the same contrast bar: fg ≥ 15:1, fg-2 ≥ 7:1, fg-3 ≥ 4.3:1 on panels.
-  Risk colors were validated with the dataviz validator on each theme's surface (adjacent CVD ΔE ≥ 8,
-  normal-vision ΔE ≥ 15, marks ≥ 3:1 on dark).
+  Light is the primary theme; dark (.dark on <html>, applied before first paint by index.html) uses the same
+  token names. Contrast: fg ≥ 15:1, fg-2 ≥ 7:1, fg-3 ≥ 4.3:1 on panels.
 */
 @layer base {
   :root {
-    --base: 244 245 247; /* #F4F5F7 */
+    --base: 245 243 239; /* #F5F3EF warm paper */
     --raised: 255 255 255;
     --overlay: 255 255 255;
-    --fg: 15 18 23; /* #0F1217 18.8:1 */
-    --fg-2: 74 83 98; /* #4A5362 7.8:1 */
-    --fg-3: 100 109 124; /* #646D7C 5.2:1 */
-    --line: rgb(15 18 23 / 0.08);
-    --line-strong: rgb(15 18 23 / 0.14);
-    --accent: 11 113 137; /* #0B7189 — white text 5.6:1 */
+    --fg: 28 25 23; /* #1C1917 16.9:1 */
+    --fg-2: 87 83 78; /* #57534E 7.6:1 */
+    --fg-3: 117 111 105; /* #756F69 4.9:1 */
+    --line: rgb(28 25 23 / 0.08);
+    --line-strong: rgb(28 25 23 / 0.14);
+    --accent: 28 25 23; /* ink — white text 16.9:1 */
     --accent-fg: 255 255 255;
+    --brand: 150 45 38; /* #962D26 burgundy — decoration only */
     --risk-critical: 159 18 57; /* #9F1239 */
     --risk-high: 234 88 12; /* #EA580C */
     --risk-medium: 234 179 8; /* #EAB308 — always labelled (low contrast on white) */
     --risk-low: 21 128 61; /* #15803D */
-    --panel-shadow: 0 1px 2px rgb(15 18 23 / 0.04), 0 0 0 1px rgb(15 18 23 / 0.05);
-    --overlay-shadow: 0 12px 32px -8px rgb(15 18 23 / 0.18), 0 0 0 1px rgb(15 18 23 / 0.08);
+    --panel-shadow: 0 1px 2px rgb(28 25 23 / 0.03), 0 6px 20px -10px rgb(28 25 23 / 0.10), 0 0 0 1px rgb(28 25 23 / 0.06);
+    --overlay-shadow: 0 16px 40px -12px rgb(28 25 23 / 0.20), 0 0 0 1px rgb(28 25 23 / 0.08);
     color-scheme: light;
   }
 
   .dark {
-    --base: 10 12 16; /* #0A0C10 */
-    --raised: 18 21 28; /* #12151C */
-    --overlay: 24 28 36; /* #181C24 */
-    --fg: 230 233 239; /* #E6E9EF 15:1 on raised */
-    --fg-2: 155 163 176; /* #9BA3B0 7.2:1 */
-    --fg-3: 120 129 143; /* #78818F 4.5:1 */
-    --line: rgb(255 255 255 / 0.07);
-    --line-strong: rgb(255 255 255 / 0.11);
-    --accent: 76 196 220; /* #4CC4DC */
-    --accent-fg: 6 19 23;
+    --base: 22 20 18; /* #161412 */
+    --raised: 31 28 26; /* #1F1C1A */
+    --overlay: 39 36 33; /* #272421 */
+    --fg: 237 233 227; /* #EDE9E3 14:1 on raised */
+    --fg-2: 181 174 165; /* #B5AEA5 8:1 */
+    --fg-3: 143 135 125; /* #8F877D 4.8:1 */
+    --line: rgb(255 250 240 / 0.07);
+    --line-strong: rgb(255 250 240 / 0.12);
+    --accent: 237 233 227; /* inverted ink */
+    --accent-fg: 22 20 18;
+    --brand: 214 132 114; /* #D68472 */
     --risk-critical: 240 70 76; /* #F0464C */
     --risk-high: 241 150 65; /* #F19641 */
     --risk-medium: 233 214 73; /* #E9D649 */
@@ -87,7 +89,15 @@
     @apply rounded-card bg-raised shadow-panel;
   }
   .eyebrow {
-    @apply text-12 font-medium uppercase tracking-[0.08em] text-fg-3;
+    @apply text-12 font-semibold uppercase tracking-[0.1em] text-fg-3;
+  }
+  /* section kicker: an eyebrow led by a small burgundy dot */
+  .kicker {
+    @apply eyebrow inline-flex items-center gap-2 before:size-1.5 before:shrink-0 before:rounded-full before:bg-brand before:content-[''];
+  }
+  /* display serif for page and panel titles */
+  .display {
+    @apply font-serif font-normal tracking-[-0.01em] text-fg;
   }
   .shimmer {
     background: linear-gradient(90deg, rgb(var(--fg) / 0.04) 0%, rgb(var(--fg) / 0.09) 50%, rgb(var(--fg) / 0.04) 100%);

@@ -1,18 +1,19 @@
 <!doctype html>
-<html lang="ru" class="dark">
+<html lang="ru">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/radar.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="dark light" />
+    <meta name="color-scheme" content="light dark" />
     <meta name="description" content="Identity Risk Analyzer — Active Directory security radar" />
     <title>Identity Risk Radar</title>
     <script>
-      // Apply the saved theme/language before the first paint (no flash). Defaults: dark theme, Russian.
+      // Apply the saved theme/language before the first paint (no flash). Defaults: light theme, Russian.
+      // Key must match THEME_KEY in src/lib/theme.tsx.
       (function () {
         var d = document.documentElement;
         try {
-          if (localStorage.getItem("ira.theme") === "light") d.classList.remove("dark");
+          if (localStorage.getItem("ira.theme.v2") === "dark") d.classList.add("dark");
           var l = localStorage.getItem("ira.lang");
           if (l === "ru" || l === "kk" || l === "en") d.lang = l;
         } catch (e) {}

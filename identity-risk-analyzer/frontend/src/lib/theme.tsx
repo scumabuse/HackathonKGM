@@ -10,6 +10,9 @@ interface ThemeCtx {
 
 const Ctx = createContext<ThemeCtx | null>(null);
 
+// v2: light became the default; the old key held an auto-saved "dark" for everyone. Must match index.html.
+const THEME_KEY = "ira.theme.v2";
+
 function initialTheme(): Theme {
   // index.html already applied the saved choice to <html> before the first paint
   return document.documentElement.classList.contains("dark") ? "dark" : "light";
@@ -22,7 +25,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const root = document.documentElement;
     root.classList.toggle("dark", theme === "dark");
     try {
-      localStorage.setItem("ira.theme", theme);
+      localStorage.setItem(THEME_KEY, theme);
     } catch {
       /* storage unavailable — keep the choice for this session only */
     }

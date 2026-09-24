@@ -1,6 +1,8 @@
 import "@fontsource-variable/inter/opsz.css";
 import "@fontsource/jetbrains-mono/400.css";
 import "@fontsource/jetbrains-mono/500.css";
+import "@fontsource-variable/noto-serif-display/wght.css";
+import "@fontsource-variable/noto-serif-display/wght-italic.css";
 import "./index.css";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";

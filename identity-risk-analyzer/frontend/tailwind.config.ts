@@ -12,6 +12,8 @@ export default {
     fontFamily: {
       sans: ['"Inter Variable"', "Inter", "system-ui", "-apple-system", '"Segoe UI"', "sans-serif"],
       mono: ['"JetBrains Mono"', "ui-monospace", "Consolas", "monospace"],
+      // headings only; full Cyrillic incl. Kazakh (cyrillic-ext)
+      serif: ['"Noto Serif Display Variable"', '"Noto Serif Display"', "Georgia", '"Times New Roman"', "serif"],
     },
     // 12 / 13 / 14 / 16 / 20 / 28 / 40 / 56 — the only sizes in the product.
     fontSize: {
@@ -24,8 +26,8 @@ export default {
       "40": ["40px", { lineHeight: "46px", letterSpacing: "-0.025em" }],
       "56": ["56px", { lineHeight: "56px", letterSpacing: "-0.035em" }],
     },
-    // Two surface radii (cards 10, controls 8) + 4px for data-mark ends.
-    borderRadius: { none: "0", sm: "4px", inner: "6px", control: "8px", card: "10px", full: "9999px" }, // inner = control inside a padded control
+    // Two surface radii (cards 14, controls 8) + 4px for data-mark ends.
+    borderRadius: { none: "0", sm: "4px", inner: "6px", control: "8px", card: "14px", full: "9999px" }, // inner = control inside a padded control
     extend: {
       colors: {
         base: rgb("base"), // page
@@ -34,6 +36,7 @@ export default {
         fg: { DEFAULT: rgb("fg"), 2: rgb("fg-2"), 3: rgb("fg-3") }, // text: primary / secondary / muted
         line: { DEFAULT: "var(--line)", strong: "var(--line-strong)" }, // hairlines
         accent: { DEFAULT: rgb("accent"), fg: rgb("accent-fg") }, // ONLY: primary action, active nav, focus
+        brand: rgb("brand"), // decoration only: kicker dots, step numerals, wordmark — never data
         // Risk semantics — data only, always paired with a label/icon. Validated per theme (dataviz validator).
         risk: { critical: rgb("risk-critical"), high: rgb("risk-high"), medium: rgb("risk-medium"), low: rgb("risk-low") },
       },

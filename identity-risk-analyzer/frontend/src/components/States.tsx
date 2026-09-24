@@ -12,7 +12,7 @@ export function StateBlock({ icon: Icon, title, text, children }: { icon: Lucide
       <span className="grid size-12 place-items-center rounded-full bg-fg/[0.06]">
         <Icon className="size-5 text-fg-2" aria-hidden />
       </span>
-      <h2 className="mt-5 text-16 font-semibold text-fg">{title}</h2>
+      <h2 className="display mt-5 text-20">{title}</h2>
       {text && <p className="mt-1.5 text-14 text-fg-2">{text}</p>}
       {children && <div className="mt-6 flex flex-col items-center gap-3">{children}</div>}
     </div>

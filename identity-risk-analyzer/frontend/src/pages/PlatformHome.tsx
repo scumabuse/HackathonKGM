@@ -42,13 +42,13 @@ export default function PlatformHome() {
       {/* ------------------------------------------------------------ hero */}
       <section className="relative grid items-center gap-12 overflow-x-clip pt-4 lg:grid-cols-[1.05fr_0.95fr] lg:pt-10">
         <motion.div variants={itemMotion} className="max-w-xl">
-          <div className="eyebrow">{t("home.eyebrow")}</div>
-          <h1 className="mt-4 text-40 font-semibold text-fg">
+          <div className="kicker">{t("home.eyebrow")}</div>
+          <h1 className="display mt-5 text-40 leading-[1.1] sm:text-56 sm:leading-[1.08]">
             {t("home.heroA")}
             {t("home.heroB")}
             {t("home.heroC")}
           </h1>
-          <p className="mt-5 max-w-[56ch] text-16 text-fg-2">{t("home.heroText")}</p>
+          <p className="mt-6 max-w-[56ch] text-16 text-fg-2">{t("home.heroText")}</p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Button variant="primary" size="lg" onClick={() => runScan()} disabled={running}>
               <Play /> {t("home.runIdentityScan")}
@@ -60,10 +60,8 @@ export default function PlatformHome() {
           <p className="mt-5 text-13 text-fg-3">{t("home.offline")}</p>
         </motion.div>
 
-        <motion.figure variants={itemMotion} className="relative mx-auto w-full max-w-[400px]">
-          {/* a very soft, neutral glow behind the scope — never competing with the data */}
-          <div className="pointer-events-none absolute -inset-16 -z-10 bg-[radial-gradient(closest-side,rgb(var(--fg)/0.05),transparent)]" aria-hidden />
-          <RadarSweep entities={d?.top_risky ?? []} className="mx-auto max-w-[340px]" />
+        <motion.figure variants={itemMotion} className="panel relative mx-auto w-full max-w-[440px] p-8">
+          <RadarSweep entities={d?.top_risky ?? []} className="mx-auto max-w-[320px]" />
           <figcaption className="mt-8">
             {d ? (
               <div className="space-y-4 border-t border-line pt-5">
@@ -103,7 +101,7 @@ export default function PlatformHome() {
 
       {/* ------------------------------------------------------------ modules: uniform cards */}
       <motion.section variants={itemMotion}>
-        <h2 className="eyebrow mb-4">{t("home.modulesTitle")}</h2>
+        <h2 className="kicker mb-5">{t("home.modulesTitle")}</h2>
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {MODULES.map((m) => {
             const body = (
@@ -111,11 +109,11 @@ export default function PlatformHome() {
                 <div className="flex items-center justify-between">
                   <m.icon className={cn("size-5", m.live ? "text-fg" : "text-fg-3")} aria-hidden />
                   <span className="inline-flex items-center gap-1.5 text-12 text-fg-3">
-                    {m.live && <span className="size-1.5 rounded-full bg-accent" aria-hidden />}
+                    {m.live && <span className="size-1.5 rounded-full bg-brand" aria-hidden />}
                     {t(m.live ? "home.live" : "home.comingSoon")}
                   </span>
                 </div>
-                <h3 className={cn("mt-5 text-14 font-semibold", m.live ? "text-fg" : "text-fg-2")}>{t(m.name)}</h3>
+                <h3 className={cn("display mt-5 text-20", !m.live && "text-fg-2")}>{t(m.name)}</h3>
                 <p className="mt-1.5 text-13 text-fg-3">{t(m.blurb)}</p>
               </>
             );
@@ -124,7 +122,7 @@ export default function PlatformHome() {
                 {m.live ? (
                   <Link
                     to="/dashboard"
-                    className="panel group block h-full p-5 transition-[transform,background-color] duration-base ease-out hover:-translate-y-0.5 hover:bg-overlay"
+                    className="panel group block h-full p-5 transition-[transform,box-shadow] duration-base ease-out hover:-translate-y-0.5 hover:shadow-overlay"
                   >
                     {body}
                     <span className="mt-4 inline-flex items-center gap-1 text-13 text-fg-2 transition-colors duration-fast group-hover:text-fg">
@@ -142,13 +140,13 @@ export default function PlatformHome() {
 
       {/* ------------------------------------------------------------ how it works */}
       <motion.section variants={itemMotion}>
-        <h2 className="eyebrow mb-4">{t("home.howItWorks")}</h2>
-        <ol className="grid gap-x-8 gap-y-6 border-t border-line pt-6 sm:grid-cols-2 lg:grid-cols-5">
+        <h2 className="kicker mb-5">{t("home.howItWorks")}</h2>
+        <ol className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           {STEPS.map((s, i) => (
-            <li key={s.title}>
-              <span className="font-mono text-12 text-fg-3">0{i + 1}</span>
-              <div className="mt-2 text-14 font-medium text-fg">{t(s.title)}</div>
-              <p className="mt-1 text-13 text-fg-3">{t(s.text)}</p>
+            <li key={s.title} className="panel p-5">
+              <span className="font-serif text-28 italic text-brand">0{i + 1}</span>
+              <div className="mt-4 text-14 font-semibold text-fg">{t(s.title)}</div>
+              <p className="mt-1.5 text-13 text-fg-2">{t(s.text)}</p>
             </li>
           ))}
         </ol>
@@ -157,10 +155,10 @@ export default function PlatformHome() {
       {/* ------------------------------------------------------------ what is checked */}
       {rules && rules.length > 0 && (
         <motion.section variants={itemMotion}>
-          <h2 className="eyebrow mb-4">
+          <h2 className="kicker mb-5">
             <MonoDigits text={tp("home.checks", rules.length)} />
           </h2>
-          <ul className="grid gap-x-8 border-t border-line pt-2 sm:grid-cols-2 lg:grid-cols-5">
+          <ul className="panel grid gap-x-8 px-5 py-2 sm:grid-cols-2 lg:grid-cols-5">
             {CATEGORIES.map((c) => {
               const Icon = CATEGORY_ICON[c];
               const n = rules.filter((r) => r.category === c).length;

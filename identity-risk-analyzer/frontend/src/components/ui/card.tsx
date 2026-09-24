@@ -21,8 +21,8 @@ export function PanelHeader({
   return (
     <header className={cn("mb-5 flex items-start justify-between gap-4", className)}>
       <div className="min-w-0">
-        <h2 className="text-14 font-semibold text-fg">{title}</h2>
-        {subtitle && <p className="mt-0.5 text-13 text-fg-3">{subtitle}</p>}
+        <h2 className="display text-20">{title}</h2>
+        {subtitle && <p className="mt-1 text-13 text-fg-3">{subtitle}</p>}
       </div>
       {right && <div className="shrink-0">{right}</div>}
     </header>

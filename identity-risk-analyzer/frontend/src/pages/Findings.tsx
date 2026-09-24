@@ -130,7 +130,7 @@ export default function Findings() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-20 font-semibold text-fg" aria-live="polite">
+        <h1 className="display text-28" aria-live="polite">
           {data ? <MonoDigits text={tp("findings.count", data.total)} /> : "…"}
         </h1>
         <div className="flex items-center gap-2">

@@ -19,20 +19,28 @@ const MODULES = [
   { label: "modules.backup", icon: Archive, live: false },
 ] as const;
 
+/** Wordmark: display serif, the last word in italic ("Risk *Radar*"). */
 export function Brand() {
   const { t } = useI18n();
+  const name = t("nav.brand");
+  const cut = name.lastIndexOf(" ");
   return (
-    <div className="flex items-center gap-2.5">
-      <Radar className="size-5 text-fg" aria-hidden />
-      <div>
-        <div className="text-14 font-semibold text-fg">{t("nav.brand")}</div>
-        <div className="text-12 text-fg-3">{t("nav.brandSub")}</div>
+    <div>
+      <div className="display text-20">
+        {cut > 0 ? (
+          <>
+            {name.slice(0, cut)} <em className="italic">{name.slice(cut + 1)}</em>
+          </>
+        ) : (
+          name
+        )}
       </div>
+      <div className="mt-0.5 text-12 text-fg-3">{t("nav.brandSub")}</div>
     </div>
   );
 }
 
-/** Active item = accent text + a thin accent bar. Inactive = muted, no boxes. */
+/** Active item = a raised white pill in ink. Inactive = muted, no boxes. */
 export function NavList({ onNavigate }: { onNavigate?: () => void }) {
   const { t } = useI18n();
   return (
@@ -47,17 +55,12 @@ export function NavList({ onNavigate }: { onNavigate?: () => void }) {
               className={({ isActive }) =>
                 cn(
                   "relative flex h-9 items-center gap-3 rounded-control px-3 text-14 transition-colors duration-fast",
-                  isActive ? "font-medium text-accent" : "text-fg-2 hover:bg-fg/[0.04] hover:text-fg",
+                  isActive ? "bg-raised font-medium text-accent shadow-panel" : "text-fg-2 hover:bg-fg/[0.04] hover:text-fg",
                 )
               }
             >
-              {({ isActive }) => (
-                <>
-                  {isActive && <span className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-accent" aria-hidden />}
-                  <Icon className="size-4" aria-hidden />
-                  {t(label)}
-                </>
-              )}
+              <Icon className="size-4" aria-hidden />
+              {t(label)}
             </NavLink>
           </li>
         ))}

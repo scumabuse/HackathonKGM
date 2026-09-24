@@ -43,7 +43,7 @@ export function RadarSweep({ entities = [], className }: { entities?: Entity[]; 
         <span
           key={e.object_id}
           className={cn("absolute -ml-1 -mt-1 size-2 rounded-full opacity-90 animate-blip motion-reduce:animate-none", LEVEL_META[e.level].dot)}
-          style={{ left: `${x}%`, top: `${y}%`, animationDelay: `${delay.toFixed(2)}s`, boxShadow: "0 0 0 2px rgb(var(--base))" }}
+          style={{ left: `${x}%`, top: `${y}%`, animationDelay: `${delay.toFixed(2)}s`, boxShadow: "0 0 0 2px rgb(var(--raised))" }}
         />
       ))}
       <div className="absolute left-1/2 top-1/2 size-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-fg-2" />

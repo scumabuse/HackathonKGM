@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Menu, Play, ShieldCheck } from "lucide-react";
+import { Menu, Play, Presentation, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { ExportMenu } from "@/components/ExportMenu";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Tip } from "@/components/ui/tooltip";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { useScan } from "@/lib/scan";
+import { useTour } from "@/lib/tour";
 import { cn, sourceKind } from "@/lib/utils";
 import { LangSwitcher, ThemeToggle } from "./Preferences";
 import { Brand, ModuleList, NavList } from "./Sidebar";
@@ -121,6 +122,7 @@ function ScanMeta() {
 export function Topbar({ chrome }: { chrome: Chrome }) {
   const { t, lang } = useI18n();
   const { runScan, running } = useScan();
+  const { start: startTour } = useTour();
   const [menuOpen, setMenuOpen] = useState(false);
   const { data: dash } = useQuery({ queryKey: ["dashboard", "latest", lang], queryFn: () => api.dashboard(), retry: false });
 
@@ -139,6 +141,11 @@ export function Topbar({ chrome }: { chrome: Chrome }) {
         <div className="flex items-center">
           <LangSwitcher />
           <ThemeToggle />
+          <Tip content={t("tour.start")}>
+            <Button variant="ghost" size="icon" onClick={startTour} aria-label={t("tour.start")}>
+              <Presentation />
+            </Button>
+          </Tip>
         </div>
         {chrome.export && <ExportMenu scanId={dash?.scan.scan_id} />}
         {chrome.run !== "hidden" && (

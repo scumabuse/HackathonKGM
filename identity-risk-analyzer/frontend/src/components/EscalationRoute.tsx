@@ -15,8 +15,23 @@ const HIDDEN_DASH_H = "lg:bg-[repeating-linear-gradient(90deg,rgb(var(--risk-cri
  * a primaryGroupID hop is the one dashed, risk-colored line — invisible in the group's member list.
  * The wide layout runs left→right from `lg` up; `vertical` (and every phone) runs top→bottom.
  */
-export function EscalationRoute({ path, edges, vertical }: { path: string[]; edges?: string[] | null; vertical?: boolean }) {
+export function EscalationRoute({
+  path,
+  edges,
+  vertical,
+  active = null,
+  run = 0,
+}: {
+  path: string[];
+  edges?: string[] | null;
+  vertical?: boolean;
+  /** attack replay: index of the node the attack has reached (null = not replaying) */
+  active?: number | null;
+  /** bump to restart the replay's line animations */
+  run?: number;
+}) {
   const reduce = useReducedMotion();
+  const replaying = active != null;
   const { t } = useI18n();
   const last = path.length - 1;
   const step = reduce ? 0 : 0.16;
@@ -53,6 +68,21 @@ export function EscalationRoute({ path, edges, vertical }: { path: string[]; edg
                       hidden ? cn(HIDDEN_DASH_V, wide && HIDDEN_DASH_H) : "bg-fg/30 transition-colors duration-base group-hover:bg-fg/55",
                     )}
                   />
+                  {/* replay: the "hot" line runs along the hop once the attack takes it */}
+                  {replaying && i <= active && (
+                    <motion.span
+                      key={`hot-${run}`}
+                      className={cn(
+                        "absolute left-1/2 top-0 h-[calc(100%-5px)] w-[2px] -translate-x-1/2 rounded-full",
+                        wide && "lg:left-0 lg:top-1/2 lg:h-[2px] lg:w-[calc(100%-5px)] lg:-translate-y-1/2 lg:translate-x-0",
+                        hidden || i === last ? "bg-risk-critical" : "bg-fg",
+                      )}
+                      style={{ boxShadow: `0 0 8px rgb(var(${hidden || i === last ? "--risk-critical" : "--fg"}) / 0.5)` }}
+                      initial={{ clipPath: reduce ? "inset(0 0 0 0)" : "inset(0 100% 100% 0)" }}
+                      animate={{ clipPath: "inset(0 0 0 0)" }}
+                      transition={{ duration: reduce ? 0 : 0.7, ease: "easeInOut" }}
+                    />
+                  )}
                   <svg
                     viewBox="0 0 8 8"
                     className={cn(
@@ -80,14 +110,19 @@ export function EscalationRoute({ path, edges, vertical }: { path: string[]; edg
             )}
             <motion.li
               initial={{ opacity: 0, y: reduce ? 0 : 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * step, duration: 0.3, ease: EASE }}
+              // replay: nodes the attack has not reached yet stay dimmed (opacity lives in motion, not a class)
+              animate={{ opacity: replaying && i > active ? 0.35 : 1, y: 0 }}
+              transition={{ delay: replaying ? 0 : i * step, duration: 0.3, ease: EASE }}
               className={cn(
-                "relative min-w-0 rounded-control border bg-raised px-4 py-3 transition-[border-color,box-shadow] duration-base",
+                "relative min-w-0 rounded-control border bg-raised px-4 py-3 transition-[border-color,box-shadow,opacity] duration-slow",
                 wide && "lg:max-w-[16rem] lg:flex-1 lg:py-3.5",
                 isLast
                   ? "border-risk-critical/40 [box-shadow:inset_0_2px_0_rgb(var(--risk-critical))] group-hover:border-risk-critical/60"
                   : "border-line-strong group-hover:border-fg/25",
+                replaying && i <= active && !isLast && "border-fg/50",
+                replaying && i === active && (isLast
+                  ? "[box-shadow:inset_0_2px_0_rgb(var(--risk-critical)),0_0_0_4px_rgb(var(--risk-critical)/0.14),0_0_24px_rgb(var(--risk-critical)/0.25)]"
+                  : "[box-shadow:0_0_0_4px_rgb(var(--fg)/0.07)]"),
               )}
             >
               <div className="flex min-w-0 items-center gap-3">

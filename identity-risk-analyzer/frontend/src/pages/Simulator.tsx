@@ -1,16 +1,20 @@
 import { Check, FlaskConical, RotateCcw, Sparkles } from "lucide-react";
 import { motion } from "motion/react";
-import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AnimatedCounter } from "@/components/AnimatedCounter";
 import { ErrorState, NoScanYet, isNotFound } from "@/components/States";
 import { Button } from "@/components/ui/button";
+import { RadarSweep } from "@/components/ui/radar-sweep";
 import { Skeleton } from "@/components/ui/skeleton";
+import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { useScanModel } from "@/lib/model";
 import { itemMotion, listMotion } from "@/lib/motion";
 import { BAND_COLOR, CATEGORIES, CATEGORY_ICON, LEVELS, LEVEL_META } from "@/lib/risk";
-import { ruleImpacts, simulate, type Outcome } from "@/lib/simulate";
+import { levelFor, ruleImpacts, simulate, type Outcome } from "@/lib/simulate";
+import type { Entity } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const PENALTY_CAP = 20;
@@ -27,30 +31,40 @@ function Delta({ value, better }: { value: number; better: "up" | "down" }) {
 }
 
 /** Right column: the scan as it is vs. the modelled scan after the ticked fixes. */
-function Outcomes({ now, after, selected }: { now: Outcome; after: Outcome; selected: number }) {
+function Outcomes({ now, after, selected, radar, ghosts }: { now: Outcome; after: Outcome; selected: number; radar: Entity[]; ghosts: ReadonlySet<string> }) {
   const { t, tp, level, category } = useI18n();
   const maxLevel = Math.max(1, ...LEVELS.map((l) => now.levels[l]));
   return (
-    <div className="panel space-y-6 p-6">
+    <div
+      className="instrument panel space-y-6 p-6"
+      style={{ backgroundImage: "radial-gradient(120% 45% at 50% 18%, rgb(255 250 240 / 0.055), transparent 70%)" }}
+      data-tour="sim"
+    >
       <div>
         <div className="kicker">{t("sim.model")}</div>
         {selected > 0 && <div className="mt-1.5 text-12 text-fg-3">{tp("sim.selected", selected)}</div>}
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      {radar.length > 0 && <RadarSweep entities={radar} ghosts={ghosts} className="mx-auto max-w-[280px]" />}
+
+      <div className="grid grid-cols-2 gap-3">
         {(
           [
             [t("sim.now"), now],
             [t("sim.after"), after],
           ] as const
         ).map(([label, o], i) => (
-          <div key={label} className={cn("rounded-control p-4", i === 1 ? "bg-fg/[0.04]" : "border border-line")}>
+          <div key={label} className={cn("rounded-control p-4", i === 1 ? "bg-fg/[0.06]" : "border border-line")}>
             <div className="text-12 text-fg-3">{label}</div>
             <div className="mt-2 flex items-baseline gap-1">
-              {i === 1 ? <AnimatedCounter value={o.score} className="font-mono text-40 text-fg" /> : <span className="font-mono text-40 text-fg">{o.score}</span>}
+              {i === 1 ? (
+                <AnimatedCounter value={o.score} className="font-mono text-40 leading-none" />
+              ) : (
+                <span className="font-mono text-40 leading-none text-fg-2">{o.score}</span>
+              )}
               <span className="font-mono text-13 text-fg-3">/100</span>
             </div>
-            <div className="mt-1 inline-flex items-center gap-1.5 text-13 text-fg-2">
+            <div className="mt-2 inline-flex items-center gap-1.5 text-13 text-fg-2">
               <span className="size-2 rounded-full" style={{ background: BAND_COLOR[o.band] }} aria-hidden />
               {t(`bands.${o.band}`)}
             </div>
@@ -141,7 +155,7 @@ function Outcomes({ now, after, selected }: { now: Outcome; after: Outcome; sele
 
 /** "What if we fix it?" — tick rules, see the domain re-scored with the scan's own formulas. */
 export default function Simulator() {
-  const { t, tp, category } = useI18n();
+  const { t, tp, category, lang } = useI18n();
   const { findings, params, ruleName, isLoading, error } = useScanModel();
   const [params0] = useSearchParams();
   const [picked, setPicked] = useState<ReadonlySet<string>>(() => new Set((params0.get("fix") ?? "").split(",").filter(Boolean)));
@@ -150,6 +164,26 @@ export default function Simulator() {
   const now = useMemo(() => (findings && params ? simulate(findings, params) : null), [findings, params]);
   const valid = useMemo(() => new Set([...picked].filter((id) => impacts.some((r) => r.rule_id === id))), [picked, impacts]);
   const after = useMemo(() => (findings && params ? simulate(findings, params, valid) : null), [findings, params, valid]);
+  const { data: dash } = useQuery({ queryKey: ["dashboard", "latest", lang, "radar"], queryFn: () => api.dashboard("latest", 50), retry: false });
+
+  // the radar shows every at-risk object at its MODELLED score; objects left with no findings become ghosts
+  const radar = useMemo<Entity[]>(() => {
+    if (!dash || !after || !params) return [];
+    return dash.top_risky.map((e) => {
+      const s = after.scores.get(e.object_id);
+      return s == null ? e : { ...e, score: s, level: levelFor(s, params.levels) };
+    });
+  }, [dash, after, params]);
+  const ghosts = useMemo(() => new Set(radar.filter((e) => !after?.scores.has(e.object_id)).map((e) => e.object_id)), [radar, after]);
+
+  // presentation tour: "pick the best three fixes"
+  const top3 = impacts.filter((r) => r.gain > 0).slice(0, 3).map((r) => r.rule_id);
+  const top3Key = top3.join(",");
+  useEffect(() => {
+    const onTour = () => setPicked(new Set(top3Key.split(",").filter(Boolean)));
+    window.addEventListener("tour:sim-top3", onTour);
+    return () => window.removeEventListener("tour:sim-top3", onTour);
+  }, [top3Key]);
 
   if (isLoading) {
     return (
@@ -169,7 +203,6 @@ export default function Simulator() {
       else next.add(id);
       return next;
     });
-  const top3 = impacts.filter((r) => r.gain > 0).slice(0, 3).map((r) => r.rule_id);
 
   return (
     <motion.div variants={listMotion} initial="hidden" animate="show" className="space-y-8 pb-8">
@@ -232,8 +265,8 @@ export default function Simulator() {
           </ul>
         </motion.section>
 
-        <motion.aside variants={itemMotion} className="min-w-0 lg:sticky lg:top-20">
-          <Outcomes now={now} after={after} selected={valid.size} />
+        <motion.aside variants={itemMotion} className="min-w-0 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:rounded-card">
+          <Outcomes now={now} after={after} selected={valid.size} radar={radar} ghosts={ghosts} />
           <p className="mt-3 flex items-start gap-2 px-1 text-12 text-fg-3">
             <FlaskConical className="mt-0.5 size-3.5 shrink-0" aria-hidden />
             <span className="font-mono">

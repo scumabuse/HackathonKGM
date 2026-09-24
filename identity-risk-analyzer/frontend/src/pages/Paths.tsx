@@ -1,6 +1,6 @@
-import { ArrowRight, Route } from "lucide-react";
-import { motion } from "motion/react";
-import { useState } from "react";
+import { ArrowRight, Play, RotateCcw, Route } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { EscalationRoute } from "@/components/EscalationRoute";
 import { RiskChip } from "@/components/RiskBadge";
@@ -16,11 +16,86 @@ import { cn } from "@/lib/utils";
 
 const targetOf = (f: Finding) => f.privilege_path![f.privilege_path!.length - 1];
 
+const HOP_MS = 1100;
+const STORY_KEYS = { member: "paths.story.member", primaryGroupID: "paths.story.primaryGroupID", in_chain: "paths.story.in_chain" } as const;
+
+/** Fill a dictionary template with React nodes ({from}, {to}, …). */
+function fill(tpl: string, parts: Record<string, ReactNode>) {
+  return tpl.split(/(\{\w+\})/).map((chunk, i) => {
+    const key = /^\{(\w+)\}$/.exec(chunk)?.[1];
+    return key && key in parts ? <Fragment key={i}>{parts[key]}</Fragment> : chunk;
+  });
+}
+
+/**
+ * Attack replay: walks the path node by node (`step`), then states the outcome. Pure presentation of the
+ * path the analyzer found — each sentence is one real hop (member / primaryGroupID) of that path.
+ */
+function useReplay(hops: number) {
+  const reduce = useReducedMotion();
+  const [step, setStep] = useState<number | null>(null);
+  const [run, setRun] = useState(0);
+  const timer = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => () => clearTimeout(timer.current), []);
+  const play = () => {
+    clearTimeout(timer.current);
+    setRun((r) => r + 1);
+    if (reduce) return setStep(hops + 1);
+    setStep(0);
+    const tick = (s: number) => {
+      timer.current = setTimeout(() => {
+        setStep(s);
+        if (s <= hops) tick(s + 1);
+      }, HOP_MS);
+    };
+    tick(1);
+  };
+  return { step, run, play, done: step != null && step > hops };
+}
+
+function AttackStory({ path, edges, step }: { path: string[]; edges?: string[] | null; step: number }) {
+  const { t } = useI18n();
+  const hops = path.length - 1;
+  const node = (s: string, critical?: boolean) => <span className={cn("font-medium", critical ? "text-risk-critical" : "text-fg")}>{s}</span>;
+  return (
+    <ol className="mt-5 space-y-1.5 rounded-control bg-fg/[0.03] px-4 py-3 font-mono text-13" aria-live="polite">
+      {Array.from({ length: Math.min(step, hops) }, (_, i) => {
+        const edge = (edges?.[i] ?? "member") as keyof typeof STORY_KEYS;
+        const hidden = edge === "primaryGroupID";
+        return (
+          <motion.li key={i} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.3 }} className="flex gap-3 text-fg-2">
+            <span className="shrink-0 text-fg-3">{i + 1}.</span>
+            <span className={hidden ? "text-risk-critical" : undefined}>
+              {fill(t(STORY_KEYS[edge] ?? STORY_KEYS.member), { from: node(path[i]), to: node(path[i + 1], i + 1 === hops) })}
+            </span>
+          </motion.li>
+        );
+      })}
+      {step > hops && (
+        <motion.li initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="flex gap-3 border-t border-line pt-2 text-fg">
+          <span className="shrink-0 text-risk-critical">→</span>
+          <span>{fill(t("paths.story.result"), { start: node(path[0]), to: node(path[hops], true) })}</span>
+        </motion.li>
+      )}
+    </ol>
+  );
+}
+
 /** One escalation path as a report card: number, verdict, the route, the fix. `featured` = the riskiest one. */
 function PathCard({ f, n, featured }: { f: Finding; n: number; featured?: boolean }) {
   const { t, tp, objectType } = useI18n();
   const Icon = OBJECT_ICON[f.object_type];
   const path = f.privilege_path!;
+  const replay = useReplay(path.length - 1);
+
+  // presentation tour: "replay the featured attack"
+  useEffect(() => {
+    if (!featured) return;
+    const onTour = () => replay.play();
+    window.addEventListener("tour:replay", onTour);
+    return () => window.removeEventListener("tour:replay", onTour);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [featured]);
   return (
     <article
       className={cn(
@@ -49,7 +124,8 @@ function PathCard({ f, n, featured }: { f: Finding; n: number; featured?: boolea
       </header>
 
       <div className={featured ? "my-8" : "my-6"}>
-        <EscalationRoute path={path} edges={f.path_edges} vertical={!featured} />
+        <EscalationRoute path={path} edges={f.path_edges} vertical={!featured} active={replay.step == null ? null : Math.min(replay.step, path.length - 1)} run={replay.run} />
+        {replay.step != null && <AttackStory path={path} edges={f.path_edges} step={replay.step} />}
       </div>
 
       <footer className="mt-auto flex flex-wrap items-end justify-between gap-4 border-t border-line pt-4">
@@ -57,11 +133,17 @@ function PathCard({ f, n, featured }: { f: Finding; n: number; featured?: boolea
           <div className="tech">{t("paths.recommendation")}</div>
           <p className="mt-1 text-13 text-fg-2 transition-colors duration-base group-hover:text-fg">{f.recommendation}</p>
         </div>
-        <Button asChild variant={featured ? "primary" : "secondary"} size="sm">
-          <Link to={`/accounts/${f.object_id}`}>
-            {t("paths.openObject")} <ArrowRight />
-          </Link>
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant={featured ? "secondary" : "ghost"} size="sm" onClick={replay.play} disabled={replay.step != null && !replay.done}>
+            {replay.done ? <RotateCcw /> : <Play />}
+            {t(replay.done ? "paths.replayAgain" : "paths.replay")}
+          </Button>
+          <Button asChild variant={featured ? "primary" : "secondary"} size="sm">
+            <Link to={`/accounts/${f.object_id}`}>
+              {t("paths.openObject")} <ArrowRight />
+            </Link>
+          </Button>
+        </div>
       </footer>
     </article>
   );
@@ -160,7 +242,7 @@ export default function Paths() {
           </motion.div>
 
           {first && (
-            <motion.div key={`featured-${target ?? "all"}`} variants={itemMotion}>
+            <motion.div key={`featured-${target ?? "all"}`} variants={itemMotion} data-tour="featured">
               <PathCard f={first} n={1} featured />
             </motion.div>
           )}

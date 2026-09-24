@@ -4,6 +4,7 @@ import { Toaster } from "sonner";
 import { TooltipProvider } from "./components/ui/tooltip";
 import { ScanProvider } from "./lib/scan";
 import { useTheme } from "./lib/theme";
+import { TourProvider } from "./lib/tour";
 
 /** Providers that need the router context (ScanProvider navigates after a scan). */
 export default function App() {
@@ -12,7 +13,9 @@ export default function App() {
     <MotionConfig reducedMotion="user">
       <TooltipProvider>
         <ScanProvider>
-          <Outlet />
+          <TourProvider>
+            <Outlet />
+          </TourProvider>
           {/* neutral toasts: status is carried by the icon + text, not by colored backgrounds */}
           <Toaster
             theme={theme}

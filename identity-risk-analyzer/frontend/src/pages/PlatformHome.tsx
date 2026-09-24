@@ -294,7 +294,7 @@ function Overview({ d }: { d: Dashboard }) {
 
   return (
     <motion.section variants={itemMotion} className="space-y-6">
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.7fr)_repeat(3,minmax(0,1fr))]">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.7fr)_repeat(3,minmax(0,1fr))]" data-tour="kpis">
         <Kpi
           to="/dashboard"
           label={t("overview.kpiScore")}
@@ -426,7 +426,7 @@ export default function PlatformHome() {
       <section className="relative grid grid-cols-[minmax(0,1fr)] items-center gap-10 overflow-x-clip lg:grid-cols-[minmax(0,1fr)_minmax(0,520px)] lg:gap-12">
         <motion.div variants={itemMotion} className="max-w-xl">
           <div className="kicker">{t("home.eyebrow")}</div>
-          <h1 className="display mt-5 text-40 leading-[1.12] tracking-[-0.02em]" aria-live="polite">
+          <h1 className="display mt-5 text-40 leading-[1.12] tracking-[-0.02em]" aria-live="polite" data-tour="headline">
             {d ? (
               <LiveHeadline d={d} />
             ) : (
@@ -449,7 +449,7 @@ export default function PlatformHome() {
           <p className="mt-5 text-13 text-fg-3">{t("home.offline")}</p>
         </motion.div>
 
-        <motion.figure variants={itemMotion} className="w-full">
+        <motion.figure variants={itemMotion} className="w-full" data-tour="radar">
           <RadarCard d={d} />
         </motion.figure>
       </section>

@@ -346,6 +346,34 @@ const en = {
     critical: plural({ one: "{n} critical object needs attention.", other: "{n} critical objects need attention." }),
     clean: "No critical objects or escalation paths found.",
   },
+  tour: {
+    start: "Demo tour",
+    next: "Next",
+    back: "Back",
+    exit: "Exit",
+    finish: "Finish",
+    keys: "← → to navigate · Esc to exit",
+    steps: {
+      headline: {
+        title: "The radar speaks in facts",
+        text: "The headline is written by the latest scan: the domain score and the most dangerous real path to privileges. Everything is clickable.",
+      },
+      radar: {
+        title: "Every point is an object at risk",
+        text: "The closer to the centre, the higher the risk. Click a point to see the object and its escalation path.",
+      },
+      kpis: { title: "Four numbers that matter", text: "Domain health, critical objects, objects at risk and real escalation paths." },
+      path: {
+        title: "The attack, step by step",
+        text: "How an account gains a privileged group's rights — built only from real group membership in the scan.",
+      },
+      sim: {
+        title: "What if we fix it?",
+        text: "We pick the three most valuable fixes: the score is recomputed with the scan's own formulas and the points leave the radar. AD is not modified.",
+      },
+      score: { title: "The report for management", text: "The domain's overall score, its history and where the points go, by category." },
+    },
+  },
   overview: {
     kpiScore: "Domain security",
     kpiScoreHint: "AD Security Score · higher is better",
@@ -394,6 +422,14 @@ const en = {
     others: "Other paths",
     pathNo: "Path {n}",
     groups: "Target group",
+    replay: "Replay attack",
+    replayAgain: "Replay again",
+    story: {
+      member: "{from} is a member of {to}.",
+      primaryGroupID: "{from} gets {to} through primaryGroupID — invisible in the member list.",
+      in_chain: "{from} is transitively in {to} (LDAP_IN_CHAIN).",
+      result: "Result: {start} holds the rights of {to}.",
+    },
   },
   sim: {
     title: "What if we fix it?",

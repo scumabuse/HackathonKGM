@@ -23,6 +23,8 @@ export interface Outcome {
   findings: number;
   levels: Record<RiskLevel, number>;
   penalties: Record<Category, number>;
+  /** modelled Object Risk Score per object still at risk (absent = no findings left) */
+  scores: Map<string, number>;
 }
 
 export function levelFor(score: number, levels: ScoringParams["levels"]): RiskLevel {
@@ -46,18 +48,20 @@ export function simulate(findings: Finding[], params: ScoringParams, removed: Re
   }
 
   const levels: Record<RiskLevel, number> = { Critical: 0, High: 0, Medium: 0, Low: 0 };
-  for (const o of objects.values()) {
+  const scores = new Map<string, number>();
+  for (const [id, o] of objects) {
     let remaining = 1;
     for (const w of o.rules.values()) remaining *= 1 - w;
     const s = Math.max(0, Math.min(100, roundHalfUp(100 * (1 - remaining) * o.k)));
     levels[levelFor(s, params.levels)] += 1;
+    scores.set(id, s);
   }
 
   const raw = CATEGORIES.map((c) => (sums[c] > 0 ? PENALTY_CAP * (1 - Math.exp(-sums[c] / params.score_tau)) : 0));
   const score = Math.max(0, Math.min(100, 100 - roundHalfUp(raw.reduce((a, b) => a + b, 0))));
   const penalties = Object.fromEntries(CATEGORIES.map((c, i) => [c, Math.round(raw[i] * 10) / 10])) as Record<Category, number>;
 
-  return { score, band: bandFor(score), objects: objects.size, findings: kept.length, levels, penalties };
+  return { score, band: bandFor(score), objects: objects.size, findings: kept.length, levels, penalties, scores };
 }
 
 export interface RuleImpact {

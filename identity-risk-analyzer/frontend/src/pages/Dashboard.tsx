@@ -344,7 +344,7 @@ export default function Dashboard() {
       <motion.div variants={itemMotion} className="col-span-12 min-w-0">
         <Masthead d={d} />
       </motion.div>
-      <motion.div variants={itemMotion} className="col-span-12 min-w-0 lg:col-span-5">
+      <motion.div variants={itemMotion} className="col-span-12 min-w-0 lg:col-span-5" data-tour="score">
         <ScorePanel d={d} />
       </motion.div>
       <motion.div variants={itemMotion} className="col-span-12 min-w-0 lg:col-span-7">

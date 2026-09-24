@@ -59,18 +59,21 @@ export function RadarSweep({
   selectedId,
   onSelect,
   visible,
+  ghosts,
 }: {
   entities?: Entity[];
   className?: string;
   selectedId?: string | null;
   onSelect?: (id: string | null) => void;
   visible?: ReadonlySet<RiskLevel>;
+  /** objects modelled as fixed: drawn as fading hollow rings at the rim (simulator) */
+  ghosts?: ReadonlySet<string>;
 }) {
   const { t, level } = useI18n();
   const blips = entities.map((e) => {
     const hash = [...e.object_id].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
     const phi = hash % 360; // degrees clockwise from 12 o'clock
-    const r = 6 + ((100 - e.score) / 100) * 38; // % of the scope, 6..44 (inside the bearing labels)
+    const r = ghosts?.has(e.object_id) ? 46 : 6 + ((100 - e.score) / 100) * 38; // % of the scope, 6..44 (inside the bearing labels); fixed → rim
     const rad = (phi * Math.PI) / 180;
     return {
       e,
@@ -118,12 +121,25 @@ export function RadarSweep({
         const dimmed = !!selected && !isSel;
         const color = LEVEL_META[e.level].color;
         const dot = cn("block size-2 rounded-full", LEVEL_META[e.level].dot);
-        const style = { left: `${x}%`, top: `${y}%`, animation: `blip-in 500ms cubic-bezier(0.2, 0.8, 0.2, 1) ${enter.toFixed(2)}s both` };
+        const style = {
+          left: `${x}%`,
+          top: `${y}%`,
+          animation: `blip-in 500ms cubic-bezier(0.2, 0.8, 0.2, 1) ${enter.toFixed(2)}s both`,
+          // a changed score (simulator) glides the blip to its new range instead of jumping
+          transition: "left 700ms cubic-bezier(0.2, 0.8, 0.2, 1), top 700ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 500ms",
+        };
+        if (ghosts?.has(e.object_id)) {
+          return (
+            <span key={e.object_id} className="absolute -ml-1 -mt-1 opacity-40" style={style}>
+              <span className="block size-2 rounded-full border" style={{ borderColor: color }} />
+            </span>
+          );
+        }
         if (!interactive) {
           return (
             <span key={e.object_id} className="absolute -ml-1 -mt-1" style={style}>
               <span
-                className={cn(dot, "opacity-90 animate-blip motion-reduce:animate-none")}
+                className={cn(dot, "opacity-90 transition-colors duration-slow animate-blip motion-reduce:animate-none")}
                 style={{ animationDelay: `${delay.toFixed(2)}s`, boxShadow: `0 0 0 2px rgb(var(--raised)), 0 0 9px 1px ${tint(LEVEL_META[e.level].color, 55)}` }}
               />
             </span>

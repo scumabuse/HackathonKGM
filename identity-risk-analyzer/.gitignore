@@ -1,0 +1,30 @@
+# secrets & local config
+.env
+backend/.env
+
+# runtime data (the mock dataset backend/data/mock_ad.json IS checked in)
+backend/data/risk_radar.db
+backend/data/risk_radar.db-*
+*.db-journal
+
+# python
+backend/.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# node
+frontend/node_modules/
+frontend/dist/
+
+# exports / snapshots users may drop in the repo
+ira-snapshot-*.json
+identity-risk-*.csv
+identity-risk-*.xlsx
+identity-risk-*.html
+auth_events.json
+
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

@@ -1,0 +1,117 @@
+# Privileged access (spec 2.3.3) — the core. Evaluated by analyzers/privilege_analyzer.py.
+# Critical groups are resolved by RID/SID, never by (localized) display name.
+analyzer: privileges
+rules:
+  - id: AD-PRIV-NESTED
+    name: Nested-group escalation
+    category: Privileged
+    weight: 0.55
+    level_hint: High
+    applies_to: [user]
+    title: Excessive rights via nested groups → {target_group}
+    description: >-
+      The account is not a direct member of any admin group, yet it inherits {target_group}
+      through nesting: {path_text}. This non-obvious escalation is invisible in ADUC's
+      "Member Of" tab.
+    recommendation: >-
+      Break the chain: remove the account from {via_group}, or un-nest {escalation_group} from
+      {target_group}. Grant admin rights only through dedicated, reviewed admin groups.
+    remediation_command: |-
+      Remove-ADGroupMember -Identity '{via_group}' -Members '{sam}' -Confirm:$false
+      # or un-nest the group: Remove-ADGroupMember -Identity '{target_sid}' -Members '{escalation_group}'
+    mitre: [T1078.002, T1069.002]
+
+  - id: AD-PRIV-HIDDEN-PGID
+    name: Hidden admin (primaryGroupID)
+    category: Privileged
+    weight: 0.70
+    level_hint: Critical
+    applies_to: [user, serviceAccount]
+    title: Hidden {target_group} membership via primaryGroupID
+    description: >-
+      primaryGroupID = {pgid} makes this account an effective member of {target_group}, but
+      it does NOT appear in the group's member attribute — most tools and admins never see it.
+    recommendation: >-
+      Reset primaryGroupID to 513 (Domain Users) and investigate who changed it and why.
+    remediation_command: Set-ADUser -Identity '{sam}' -Replace @{{primaryGroupID=513}}
+    mitre: [T1098, T1078.002]
+
+  - id: AD-PRIV-DISABLED
+    name: Disabled but privileged
+    category: Privileged
+    weight: 0.30
+    level_hint: Medium
+    applies_to: [user, serviceAccount]
+    title: Disabled account still in {target_group}
+    description: >-
+      The account is disabled (ACCOUNTDISABLE 0x2) but remains an effective member of
+      {target_group}. Re-enabling it — by mistake or by an attacker — instantly restores
+      admin rights.
+    recommendation: Remove every privileged group membership from disabled accounts.
+    remediation_command: Remove-ADGroupMember -Identity '{via_group}' -Members '{sam}' -Confirm:$false
+    mitre: [T1078.002]
+
+  - id: AD-PRIV-INACTIVE
+    name: Inactive privileged account
+    category: Privileged
+    weight: 0.40
+    level_hint: High
+    applies_to: [user]
+    title: Privileged account inactive for {days_inactive} days
+    description: >-
+      An enabled member of {target_group} has not authenticated for {days_inactive} days.
+      Unused admin accounts are high-value targets that nobody watches.
+    recommendation: Disable the account and remove its privileged memberships.
+    remediation_command: |-
+      Disable-ADAccount -Identity '{sam}'
+      Remove-ADGroupMember -Identity '{via_group}' -Members '{sam}' -Confirm:$false
+    mitre: [T1078.002]
+
+  - id: AD-PRIV-MULTI
+    name: Multiple admin groups
+    category: Privileged
+    weight: 0.20
+    level_hint: Low
+    applies_to: [user]
+    title: Member of {group_count} admin groups
+    description: >-
+      Direct member of {group_list}. Stacking admin roles on one identity violates
+      least-privilege and tiering.
+    recommendation: Keep one role per admin identity; split duties into separate tiered accounts.
+    remediation_command: "# keep a single role, e.g.: Remove-ADGroupMember -Identity '<group>' -Members '{sam}'"
+    mitre: [T1078.002]
+
+  - id: AD-PRIV-DA-OVERSIZED
+    name: Oversized Domain Admins
+    category: Privileged
+    weight: 0.40
+    level_hint: Medium
+    applies_to: [group]
+    listed_when_unmatched: false
+    title: Domain Admins has {member_count} effective members
+    description: >-
+      {member_count} accounts are effective members of Domain Admins (threshold
+      {da_max_members}), counting nested and primaryGroupID membership. Every extra member
+      multiplies the attack surface of the whole forest.
+    recommendation: >-
+      Reduce Domain Admins to a small set of dedicated Tier-0 accounts; use delegated,
+      scoped groups for day-to-day administration.
+    remediation_command: Get-ADGroupMember -Identity '{object_sid}' -Recursive | Select-Object SamAccountName, objectClass
+    mitre: [T1069.002]
+
+  - id: AD-PRIV-ADMINCOUNT-ORPHAN
+    name: Orphaned adminCount
+    category: Privileged
+    weight: 0.20
+    level_hint: Low
+    applies_to: [user, serviceAccount]
+    title: Orphaned adminCount=1 (AdminSDHolder)
+    description: >-
+      adminCount is 1 but the account is no longer in any protected group. It keeps the
+      AdminSDHolder ACL with inheritance disabled — a sign of a former admin and a common
+      persistence trick.
+    recommendation: Clear adminCount and re-enable ACL inheritance on the object.
+    remediation_command: |-
+      Set-ADUser -Identity '{sam}' -Clear adminCount
+      # then: ADUC > Security > Advanced > Enable inheritance
+    mitre: [T1098]

@@ -1,0 +1,11 @@
+[project]
+name = "identity-risk-analyzer"
+version = "1.0.0"
+description = "Identity Risk Analyzer — Active Directory security radar (Module 1 of Infrastructure Risk Radar)"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+filterwarnings = ["ignore::DeprecationWarning"]

@@ -1,0 +1,79 @@
+# Extra checks (spec 2.3.5, P2). Evaluated by analyzers/extra_analyzer.py.
+analyzer: extra
+rules:
+  - id: AD-CMP-INACTIVE
+    name: Inactive computer
+    category: Stale
+    weight: 0.25
+    level_hint: Low
+    applies_to: [computer]
+    title: Computer account inactive for {days_inactive} days
+    description: >-
+      The computer has not updated lastLogonTimestamp for {days_inactive} days. Stale machine
+      accounts can be re-used to join rogue hosts or abused for relay attacks.
+    recommendation: Disable, then delete after the retention period.
+    remediation_command: Disable-ADAccount -Identity '{sam}'
+    mitre: [T1078.002]
+
+  - id: AD-EXT-SIDHISTORY
+    name: sIDHistory present
+    category: Privileged
+    weight: 0.45
+    level_hint: High
+    applies_to: [user, serviceAccount, group]
+    title: sIDHistory present
+    description: >-
+      sIDHistory contains {sid_history}. SIDs in history are honoured in access checks —
+      a leftover from migrations and a well-known persistence technique.
+    recommendation: Clean up sIDHistory once the migration is complete.
+    remediation_command: Set-ADObject -Identity '{dn}' -Remove @{{sIDHistory='{sid_history}'}}
+    mitre: [T1134.005]
+
+  - id: AD-EXT-UNCONSTRAINED
+    name: Unconstrained delegation
+    category: Config
+    weight: 0.60
+    level_hint: Critical
+    applies_to: [computer, user, serviceAccount]
+    title: Unconstrained Kerberos delegation
+    description: >-
+      TRUSTED_FOR_DELEGATION (0x80000) is set on a non-DC object. Any user authenticating to
+      it leaves a forwardable TGT in memory — coerce a DC to connect and the domain is gone.
+    recommendation: Switch to constrained delegation or resource-based constrained delegation (RBCD).
+    remediation_command: Set-ADAccountControl -Identity '{sam}' -TrustedForDelegation $false
+    mitre: [T1558, T1550.003]
+
+  - id: AD-EXT-KRBTGT-OLD
+    name: Old krbtgt password
+    category: Config
+    weight: 0.50
+    level_hint: High
+    applies_to: [user]
+    listed_when_unmatched: false
+    title: krbtgt password {pwd_age_days} days old
+    description: >-
+      The krbtgt key signs every Kerberos ticket. It has not been rotated for {pwd_age_days}
+      days (threshold {krbtgt_max_age_days}); any past compromise still enables Golden Tickets.
+    recommendation: >-
+      Rotate krbtgt twice, waiting for replication and at least the max ticket lifetime (10h)
+      between resets — use Microsoft's New-KrbtgtKeys.ps1.
+    remediation_command: |-
+      # Microsoft's reset script (run Mode 1 = informational first):
+      .\New-KrbtgtKeys.ps1
+    mitre: [T1558.001]
+
+  - id: AD-EXT-DUP-SPN
+    name: Duplicate SPN
+    category: Service
+    weight: 0.20
+    level_hint: Low
+    applies_to: [user, serviceAccount, computer]
+    title: Duplicate SPN {spn}
+    description: >-
+      The SPN {spn} is also registered on {other_holders}. Kerberos cannot pick a key
+      deterministically: authentication breaks or falls back to NTLM.
+    recommendation: Keep the SPN on exactly one account.
+    remediation_command: |-
+      setspn -X -F
+      setspn -D '{spn}' '{sam}'
+    mitre: []

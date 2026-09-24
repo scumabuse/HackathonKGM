@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="{{ lang }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ heading }}</title>
+<style>
+  :root { --bg:#070a0f; --panel:#0d131c; --line:#1c2633; --text:#e2e8f0; --muted:#8a9bb0; --accent:#22d3ee;
+          --crit:#ef4444; --high:#f97316; --med:#eab308; --low:#10b981; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif; }
+  .wrap { max-width:1200px; margin:0 auto; padding:32px 20px 64px; }
+  header { display:flex; flex-wrap:wrap; justify-content:space-between; gap:16px; align-items:flex-end; border-bottom:1px solid var(--line); padding-bottom:20px; }
+  .eyebrow { color:var(--accent); letter-spacing:.18em; text-transform:uppercase; font-size:11px; font-weight:600; }
+  h1 { margin:6px 0 0; font-size:26px; }
+  h2 { font-size:15px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin:36px 0 12px; }
+  .meta { color:var(--muted); font-size:12px; text-align:right; }
+  .mono { font-family: "JetBrains Mono", Consolas, monospace; }
+  .grid { display:grid; grid-template-columns: 260px 1fr; gap:16px; margin-top:24px; }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:18px; }
+  .gauge { text-align:center; }
+  .gauge .num { font-size:44px; font-weight:700; }
+  .gauge .lbl { color:var(--muted); font-size:12px; }
+  .cards { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px; }
+  .card .n { font-size:28px; font-weight:700; }
+  .card .t { color:var(--muted); font-size:12px; }
+  .kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:12px; }
+  .bar { height:8px; background:#1a2330; border-radius:99px; overflow:hidden; }
+  .bar > span { display:block; height:100%; background:var(--accent); }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { text-align:left; color:var(--muted); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.06em; padding:10px 8px; border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--bg); }
+  td { padding:9px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:99px; font-size:11px; font-weight:700; border:1px solid; white-space:nowrap; }
+  .Critical { color:var(--crit); border-color:rgba(239,68,68,.45); background:rgba(239,68,68,.12); }
+  .High { color:var(--high); border-color:rgba(249,115,22,.45); background:rgba(249,115,22,.12); }
+  .Medium { color:var(--med); border-color:rgba(234,179,8,.45); background:rgba(234,179,8,.12); }
+  .Low { color:var(--low); border-color:rgba(16,185,129,.45); background:rgba(16,185,129,.12); }
+  details summary { cursor:pointer; color:var(--accent); font-size:12px; }
+  pre { white-space:pre-wrap; word-break:break-all; background:#05080c; border:1px solid var(--line); border-radius:8px; padding:10px; font-size:12px; }
+  .ev { color:var(--muted); font-size:12px; margin:4px 0 0; padding-left:16px; }
+  .path { color:var(--accent); }
+  .note { color:var(--muted); font-size:12px; margin-top:28px; border-top:1px solid var(--line); padding-top:14px; }
+  @media (max-width:760px) { .grid { grid-template-columns:1fr; } .cards, .kpis { grid-template-columns:repeat(2,1fr); } .hide-sm { display:none; } }
+  @media print { :root { --bg:#fff; --panel:#fff; --line:#ddd; --text:#111; --muted:#555; } th { position:static; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow">{{ L["html.eyebrow"] }}</div>
+      <h1>{{ heading }}</h1>
+    </div>
+    <div class="meta mono">
+      {{ L["html.scan"] }} {{ scan.scan_id[:8] }} · {{ scan.started_at.strftime("%Y-%m-%d %H:%M") }} UTC<br>
+      {{ L["html.source"] }}: {{ scan.source }} · {{ L["html.generated"] }} {{ generated }}{% if filtered %} · {{ L["html.filtered"] }}{% endif %}
+    </div>
+  </header>
+
+  <div class="grid">
+    <div class="panel gauge">
+      <svg viewBox="0 0 200 170" width="220" role="img" aria-label="AD Security Score {{ scan.ad_security_score }}">
+        <circle cx="100" cy="100" r="80" fill="none" stroke="#1a2330" stroke-width="14" stroke-linecap="round"
+                stroke-dasharray="{{ '%.1f'|format(gauge.len) }} 1000" transform="rotate(150 100 100)"/>
+        <circle cx="100" cy="100" r="80" fill="none" stroke="{{ band_color }}" stroke-width="14" stroke-linecap="round"
+                stroke-dasharray="{{ '%.1f'|format(gauge.dash) }} 1000" transform="rotate(150 100 100)"/>
+        <text x="100" y="108" text-anchor="middle" fill="{{ band_color }}" font-size="44" font-weight="700">{{ scan.ad_security_score }}</text>
+        <text x="100" y="132" text-anchor="middle" fill="#8a9bb0" font-size="11">{{ band }} · {{ L["html.of100"] }}</text>
+      </svg>
+      <div class="lbl">{{ gauge_label }}</div>
+    </div>
+    <div>
+      <div class="cards">
+        {% for level in levels %}
+        <div class="card"><div class="n {{ level }}" style="border:0;background:none">{{ scan.counts.get(level, 0) }}</div><div class="t">{{ lvl(level) }} · {{ L["html.objects_suffix"] }}</div></div>
+        {% endfor %}
+      </div>
+      <div class="kpis">
+        <div class="card"><div class="n">{{ scan.counts.get('inactive_users', 0) }}</div><div class="t">{{ L["html.kpi_inactive"] }}</div></div>
+        <div class="card"><div class="n">{{ scan.counts.get('service_pne', 0) }}</div><div class="t">{{ L["html.kpi_pne"] }}</div></div>
+        <div class="card"><div class="n">{{ scan.counts.get('disabled_privileged', 0) }}</div><div class="t">{{ L["html.kpi_disabled"] }}</div></div>
+        <div class="card"><div class="n">{{ scan.counts.get('excessive_rights', 0) }}</div><div class="t">{{ L["html.kpi_excessive"] }}</div></div>
+      </div>
+      <div class="panel" style="margin-top:12px">
+        {% for category, pen in scan.category_scores.items() %}
+        <div style="display:flex;align-items:center;gap:12px;margin:6px 0">
+          <div style="width:110px">{{ cat(category) }}</div>
+          <div class="bar" style="flex:1"><span style="width:{{ (pen / 20 * 100)|round(1) }}%"></span></div>
+          <div class="mono" style="min-width:84px;text-align:right;white-space:nowrap">−{{ pen }} / 20</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <h2>{{ L["html.most_risky"] }}</h2>
+  <table>
+    <thead><tr><th>{{ L["html.th_level"] }}</th><th>{{ L["html.th_risk"] }}</th><th>{{ L["html.th_object"] }}</th><th class="hide-sm">{{ L["html.th_type"] }}</th><th>{{ L["html.th_top"] }}</th><th class="hide-sm">{{ L["html.th_path"] }}</th></tr></thead>
+    <tbody>
+    {% for e in entities %}
+      <tr>
+        <td><span class="badge {{ e.level.value }}">{{ lvl(e.level.value) }}</span></td>
+        <td class="mono">{{ e.score }}{% if e.k != 1.0 %} <span style="color:#8a9bb0">(k {{ e.k }})</span>{% endif %}</td>
+        <td class="mono">{{ e.object_name }}</td>
+        <td class="hide-sm">{{ typ(e.object_type) }}</td>
+        <td>{{ e.top_title }}{% if e.finding_count > 1 %} <span style="color:#8a9bb0">+{{ e.finding_count - 1 }} {{ L["html.more"] }}</span>{% endif %}</td>
+        <td class="hide-sm path mono">{{ (e.privilege_path or [])|join(' → ') }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  <h2>{{ L["html.findings"] }} ({{ findings|length }})</h2>
+  <table>
+    <thead><tr><th>{{ L["html.th_level"] }}</th><th>{{ L["html.th_score"] }}</th><th>{{ L["html.th_rule"] }}</th><th>{{ L["html.th_object"] }}</th><th>{{ L["html.th_finding"] }}</th></tr></thead>
+    <tbody>
+    {% for f in findings %}
+      <tr>
+        <td><span class="badge {{ f.level.value }}">{{ lvl(f.level.value) }}</span></td>
+        <td class="mono">{{ f.score }}</td>
+        <td class="mono" style="white-space:nowrap">{{ f.rule_id }}<br><span style="color:#8a9bb0">{{ cat(f.category) }} · w {{ f.rule_weight }}</span></td>
+        <td class="mono">{{ f.object_name }}<br><span style="color:#8a9bb0">{{ typ(f.object_type) }}</span></td>
+        <td>
+          <b>{{ f.title }}</b>
+          <div style="color:#b6c3d4">{{ f.description }}</div>
+          {% if f.privilege_path %}<div class="path mono">{{ f.privilege_path|join(' → ') }}</div>{% endif %}
+          <details><summary>{{ L["html.details"] }}{% if f.mitre %} {{ L["html.and_mitre"] }} {{ f.mitre|join(', ') }}{% endif %}</summary>
+            <ul class="ev">{% for ev in f.evidence %}<li><span class="mono">{{ ev.attribute }}</span>: {{ ev.value }}</li>{% endfor %}</ul>
+            <p><b>{{ L["html.recommendation"] }}</b> {{ f.recommendation }}</p>
+            {% if f.remediation_command %}<pre class="mono">{{ f.remediation_command }}</pre>{% endif %}
+          </details>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="note">
+    {{ L["html.note"] }}
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,96 @@
+# User account hygiene (spec 2.3.1). Evaluated by analyzers/user_analyzer.py.
+# Placeholders: {sam} {dn} {name} {domain} {domain_dn} + thresholds (e.g. {inactive_days}) + rule vars.
+# Remediation commands are TEXT ONLY — the tool never executes them.
+analyzer: users
+rules:
+  - id: AD-USR-INACTIVE
+    name: Inactive enabled account
+    category: Stale
+    weight: 0.35
+    level_hint: Medium
+    applies_to: [user]
+    title: Enabled account inactive for {inactive_days}+ days
+    description: >-
+      The account is enabled but has not authenticated for {days_inactive} days. Dormant
+      accounts are prime targets: nobody notices when they are abused.
+    recommendation: >-
+      Confirm with the manager/HR that the account is no longer needed, disable it, move it
+      to a quarantine OU and delete after the retention period.
+    remediation_command: |-
+      Disable-ADAccount -Identity '{sam}'
+      Move-ADObject -Identity '{dn}' -TargetPath 'OU=Disabled Accounts,{domain_dn}'
+    mitre: [T1078.002]
+
+  - id: AD-USR-PNE
+    name: Password never expires
+    category: Passwords
+    weight: 0.30
+    level_hint: Medium
+    applies_to: [user]
+    title: Password never expires
+    description: >-
+      DONT_EXPIRE_PASSWD (0x10000) is set in userAccountControl, so the password is exempt
+      from the domain rotation policy and a leaked credential stays valid indefinitely.
+    recommendation: >-
+      Remove the flag and let the account follow the domain/fine-grained password policy.
+    remediation_command: Set-ADUser -Identity '{sam}' -PasswordNeverExpires $false
+    mitre: [T1078.002]
+
+  - id: AD-USR-PWD-OLD
+    name: Stale password
+    category: Passwords
+    weight: 0.35
+    level_hint: Medium
+    applies_to: [user]
+    title: Password unchanged for {pwd_max_age_days}+ days
+    description: >-
+      pwdLastSet shows the password was last changed {pwd_age_days} days ago. Old passwords
+      are more likely to be reused, leaked or cracked offline.
+    recommendation: Force a password change at next logon and review why rotation did not happen.
+    remediation_command: Set-ADUser -Identity '{sam}' -ChangePasswordAtLogon $true
+    mitre: [T1110]
+
+  - id: AD-USR-LOCKED
+    name: Locked out
+    category: Passwords
+    weight: 0.15
+    level_hint: Low
+    applies_to: [user]
+    title: Account is locked out
+    description: >-
+      msDS-User-Account-Control-Computed has LOCKOUT (0x10): repeated bad passwords were
+      presented. This can be a forgotten password — or an attack in progress.
+    recommendation: >-
+      Correlate with 4740/4625/4771 events to find the source before unlocking.
+    remediation_command: |-
+      Get-ADUser -Identity '{sam}' -Properties LockedOut,BadLogonCount,LastBadPasswordAttempt
+      # after investigation: Unlock-ADAccount -Identity '{sam}'
+    mitre: [T1110]
+
+  - id: AD-USR-PWD-EXPIRED
+    name: Password expired
+    category: Stale
+    weight: 0.10
+    level_hint: Low
+    applies_to: [user]
+    title: Password expired, account still enabled
+    description: >-
+      msDS-User-Account-Control-Computed has PASSWORD_EXPIRED (0x800000). The owner has not
+      signed in to renew it, which usually means the account is no longer used.
+    recommendation: Verify the account is still needed; disable it otherwise.
+    remediation_command: Disable-ADAccount -Identity '{sam}'
+    mitre: [T1078.002]
+
+  - id: AD-USR-EXPIRED
+    name: Expired but enabled
+    category: Stale
+    weight: 0.20
+    level_hint: Low
+    applies_to: [user]
+    title: Account expired but not disabled
+    description: >-
+      accountExpires passed {expired_days} days ago, yet the account is still enabled.
+      Expiry is often extended silently; disabling makes the intent explicit.
+    recommendation: Disable the account (or formally extend the contract and expiry date).
+    remediation_command: Disable-ADAccount -Identity '{sam}'
+    mitre: [T1078.002]

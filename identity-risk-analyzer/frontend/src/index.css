@@ -1,0 +1,148 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  Security-operations console. One electric accent (cyan); risk colors carry severity only.
+  Light theme = :root, dark theme = .dark on <html> (set before first paint by index.html).
+  Risk colors are validated per theme with the dataviz validator and are always paired with a label.
+*/
+@layer base {
+  :root {
+    --background: 214 32% 96%; /* page plane */
+    --surface: 0 0% 100%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 192 91% 32%; /* cyan-700-ish: 4.5:1 on white */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 214 32% 91%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 214 32% 92%;
+    --muted-foreground: 215 19% 38%;
+    --accent: 214 32% 90%;
+    --accent-foreground: 222 47% 11%;
+    --destructive: 0 72% 45%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214 25% 84%;
+    --input: 214 25% 80%;
+    --ring: 192 91% 32%;
+    --inset: 214 35% 95%;
+    --fg-rgb: 15 23 42;
+    --code-fg: 14 90 110;
+    --risk-critical: 159 18 57; /* #9f1239 */
+    --risk-high: 234 88 12; /* #ea580c */
+    --risk-medium: 234 179 8; /* #eab308 */
+    --risk-low: 21 128 61; /* #15803d */
+    --risk-critical-fg: 159 18 57;
+    --risk-high-fg: 194 65 12;
+    --risk-medium-fg: 161 98 7;
+    --risk-low-fg: 21 128 61;
+    --grid-line: 100 116 139 / 0.1;
+    --glass-shadow: 0 1px 0 0 rgb(255 255 255 / 0.6) inset, 0 12px 32px -18px rgb(15 23 42 / 0.25);
+    --aurora-strength: 0.55;
+    --radius: 0.85rem;
+    color-scheme: light;
+  }
+
+  .dark {
+    --background: 216 40% 4%; /* #06090e */
+    --surface: 216 33% 8%; /* #0d121a */
+    --foreground: 210 40% 94%;
+    --card: 216 33% 8%;
+    --card-foreground: 210 40% 94%;
+    --popover: 216 35% 7%;
+    --popover-foreground: 210 40% 94%;
+    --primary: 188 86% 53%; /* #22d3ee */
+    --primary-foreground: 216 45% 6%;
+    --secondary: 215 28% 13%;
+    --secondary-foreground: 210 40% 94%;
+    --muted: 215 28% 12%;
+    --muted-foreground: 214 16% 60%;
+    --accent: 215 28% 14%;
+    --accent-foreground: 210 40% 96%;
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 215 25% 15%;
+    --input: 215 25% 17%;
+    --ring: 188 86% 53%;
+    --inset: 216 40% 3%;
+    --fg-rgb: 255 255 255;
+    --code-fg: 191 233 242;
+    --risk-critical: 220 63 63; /* #dc3f3f */
+    --risk-high: 240 138 51; /* #f08a33 */
+    --risk-medium: 247 210 74; /* #f7d24a */
+    --risk-low: 18 161 80; /* #12a150 */
+    --risk-critical-fg: 255 138 138;
+    --risk-high-fg: 255 178 122;
+    --risk-medium-fg: 247 220 122;
+    --risk-low-fg: 95 214 143;
+    --grid-line: 148 163 184 / 0.06;
+    --glass-shadow: 0 1px 0 0 rgb(255 255 255 / 0.04) inset, 0 24px 48px -24px rgb(0 0 0 / 0.6);
+    --aurora-strength: 1;
+    color-scheme: dark;
+  }
+
+  * {
+    @apply border-border;
+  }
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+  body {
+    @apply bg-background font-sans text-foreground antialiased;
+    font-feature-settings: "ss01", "cv11";
+  }
+  ::selection {
+    background: hsl(var(--primary) / 0.3);
+  }
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply rounded-2xl border border-fg/[0.08] bg-card/75 backdrop-blur-xl;
+    box-shadow: var(--glass-shadow);
+  }
+  .eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-[0.18em] text-primary;
+  }
+  .num {
+    font-variant-numeric: tabular-nums;
+  }
+  .grid-bg {
+    background-image: linear-gradient(to right, rgb(var(--grid-line)) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(var(--grid-line)) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 30%, transparent 100%);
+  }
+  .shimmer {
+    background: linear-gradient(90deg, hsl(var(--muted)) 0%, hsl(var(--accent)) 50%, hsl(var(--muted)) 100%);
+    background-size: 200% 100%;
+    @apply animate-shimmer;
+  }
+  .glow-primary {
+    box-shadow: 0 0 0 1px hsl(var(--primary) / 0.35), 0 0 32px -6px hsl(var(--primary) / 0.55);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

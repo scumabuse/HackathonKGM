@@ -91,9 +91,13 @@
   .eyebrow {
     @apply text-12 font-semibold uppercase tracking-[0.1em] text-fg-3;
   }
-  /* section kicker: an eyebrow led by a small burgundy dot */
+  /* technical caption: the product's "instrument" voice (domain, scope, units) */
+  .tech {
+    @apply font-mono text-12 font-medium uppercase tracking-[0.08em] text-fg-3;
+  }
+  /* section kicker: a technical mono label led by a small burgundy dot */
   .kicker {
-    @apply eyebrow inline-flex items-center gap-2 before:size-1.5 before:shrink-0 before:rounded-full before:bg-brand before:content-[''];
+    @apply tech inline-flex items-center gap-2 before:size-1.5 before:shrink-0 before:rounded-full before:bg-brand before:content-[''];
   }
   /* display serif for page and panel titles */
   .display {
@@ -103,6 +107,18 @@
     background: linear-gradient(90deg, rgb(var(--fg) / 0.04) 0%, rgb(var(--fg) / 0.09) 50%, rgb(var(--fg) / 0.04) 100%);
     background-size: 200% 100%;
     @apply animate-shimmer;
+  }
+}
+
+/* radar blips fade and grow in once, staggered by bearing (delay set inline) */
+@keyframes blip-in {
+  from {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
   }
 }
 

@@ -159,7 +159,7 @@ export function Topbar({ chrome }: { chrome: Chrome }) {
             <div className="eyebrow mb-2">{t("topbar.collector")}</div>
             <SourceToggle />
           </div>
-          <ModuleList />
+          <ModuleList onNavigate={() => setMenuOpen(false)} />
           <div className="mt-auto px-3 text-12 text-fg-3 md:hidden">
             <ReadOnlyNote />
           </div>

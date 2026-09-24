@@ -18,8 +18,9 @@ import { Tip } from "@/components/ui/tooltip";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { itemMotion, listMotion } from "@/lib/motion";
-import { BAND_COLOR, LEVELS, LEVEL_META, OBJECT_ICON } from "@/lib/risk";
+import { BAND_COLOR, OBJECT_ICON } from "@/lib/risk";
 import type { Dashboard as DashboardT } from "@/lib/types";
+import { cn, sourceKind } from "@/lib/utils";
 
 // Labels live in the dictionary under dashboard.kpi.<key> and dashboard.kpi.<key>Hint.
 const KPIS = [
@@ -34,13 +35,34 @@ const KPIS = [
 function DashboardSkeleton() {
   return (
     <div className="grid grid-cols-12 gap-4 lg:gap-6" aria-busy>
-      <Skeleton className="col-span-12 h-[440px] rounded-card lg:col-span-5" />
-      <Skeleton className="col-span-12 h-[440px] rounded-card lg:col-span-7" />
-      <Skeleton className="col-span-12 h-[260px] rounded-card lg:col-span-6" />
-      <Skeleton className="col-span-12 h-[260px] rounded-card lg:col-span-6" />
+      <Skeleton className="col-span-12 h-24 rounded-card" />
+      <Skeleton className="col-span-12 h-[520px] rounded-card lg:col-span-5" />
+      <Skeleton className="col-span-12 h-[520px] rounded-card lg:col-span-7" />
+      <Skeleton className="col-span-12 h-[300px] rounded-card lg:col-span-7" />
+      <Skeleton className="col-span-12 h-[300px] rounded-card lg:col-span-5" />
       <Skeleton className="col-span-12 h-[420px] rounded-card lg:col-span-8" />
       <Skeleton className="col-span-12 h-[420px] rounded-card lg:col-span-4" />
     </div>
+  );
+}
+
+/** Page masthead: what this is (kicker), which domain (serif title), when and from where (mono line). */
+function Masthead({ d }: { d: DashboardT }) {
+  const { t, timeAgo, fmtDateTime } = useI18n();
+  return (
+    <header className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
+      <div className="min-w-0">
+        <div className="kicker">{t("titles.dashboard")}</div>
+        <h1 className="display mt-3 truncate text-40 leading-[1.1]">{d.scan.domain}</h1>
+      </div>
+      <div className="tech flex flex-wrap items-center gap-x-3 gap-y-1 pb-1">
+        <Tip content={<span className="font-mono">{fmtDateTime(d.scan.started_at)}</span>}>
+          <span>{t("topbar.lastScan", { time: timeAgo(d.scan.started_at) })}</span>
+        </Tip>
+        <span aria-hidden>·</span>
+        <span>{t(`source.${sourceKind(d.scan.source)}`)}</span>
+      </div>
+    </header>
   );
 }
 
@@ -52,19 +74,19 @@ function ScorePanel({ d }: { d: DashboardT }) {
   const DeltaIcon = delta == null || delta === 0 ? Minus : delta > 0 ? ArrowUpRight : ArrowDownRight;
   return (
     <Panel className="flex h-full flex-col">
-      <div className="eyebrow">{t("common.adSecurityScore")}</div>
+      <div className="tech">{t("common.adSecurityScore")}</div>
       <p className="mt-1 text-13 text-fg-3">{t("dashboard.domainHealth")}</p>
-      <div className="mt-6">
+      <div className="mt-6 px-2">
         <ScoreGauge score={d.ad_security_score} />
       </div>
-      <div className="mt-2 flex flex-col items-center gap-1.5 pb-6 text-center">
+      <div className="mt-1 flex flex-col items-center gap-1.5 pb-6 text-center">
         <div className="inline-flex items-center gap-2 text-16 font-medium text-fg">
           <span className="size-2 rounded-full" style={{ background: BAND_COLOR[band] }} aria-hidden />
           {t(`bands.${band}`)}
         </div>
         <p className="max-w-xs text-13 text-fg-2">{t(`bandBlurb.${band}`)}</p>
         {delta != null && (
-          <p className="inline-flex items-center gap-1 text-12 text-fg-3">
+          <p className="inline-flex items-center gap-1 font-mono text-12 text-fg-3">
             <DeltaIcon className="size-3.5" aria-hidden />
             {delta === 0 ? t("dashboard.noChange") : t("dashboard.vsPrevious", { delta: `${delta > 0 ? "+" : "−"}${num(Math.abs(delta))}` })}
           </p>
@@ -72,63 +94,61 @@ function ScorePanel({ d }: { d: DashboardT }) {
       </div>
       {d.trend.length > 1 && (
         <div className="mt-auto border-t border-line pt-5">
-          <TrendSparkline points={d.trend} label={t("dashboard.history")} valueLabel={t("common.adSecurityScore")} />
+          <TrendSparkline points={d.trend} label={t("dashboard.history")} valueLabel={t("common.adSecurityScore")} height={96} />
         </div>
       )}
     </Panel>
   );
 }
 
-/** Row 1, right — second tier: how many objects sit at each level. */
+/** Row 1, right — every at-risk object by level: one ring + legend (it replaces four separate counters). */
 function LevelsPanel({ d }: { d: DashboardT }) {
-  const { t, level } = useI18n();
+  const { t, tp } = useI18n();
+  const critical = d.level_counts.Critical;
   return (
-    <Panel>
-      <PanelHeader title={t("dashboard.objectsAtRisk")} subtitle={t("dashboard.objectsAtRiskSub")} />
-      <div className="grid grid-cols-2 gap-y-6 sm:grid-cols-4">
-        {LEVELS.map((l, i) => {
-          const m = LEVEL_META[l];
-          const Icon = m.icon;
-          return (
-            <Link
-              key={l}
-              to={`/findings?level=${l}`}
-              className={`rounded-control px-4 py-1 transition-colors duration-fast hover:bg-fg/[0.04] ${i > 0 ? "sm:border-l sm:border-line" : ""}`}
-            >
-              <span className="flex items-center gap-2 text-13 text-fg-2">
-                <Icon className="size-3.5" style={{ color: m.color }} aria-hidden />
-                {level(l)}
-              </span>
-              <AnimatedCounter value={d.level_counts[l]} className="mt-2 block font-mono text-28 text-fg" />
-              <span className="font-mono text-12 text-fg-3">{m.range}</span>
-            </Link>
-          );
-        })}
-      </div>
-    </Panel>
+    <RiskDonut
+      counts={d.level_counts}
+      title={t("dashboard.objectsAtRisk")}
+      subtitle={t("dashboard.objectsAtRiskSub")}
+      footer={
+        critical > 0 && (
+          <Link
+            to="/findings?level=Critical"
+            className="group flex items-center gap-3 rounded-control bg-risk-critical/[0.07] px-4 py-3 text-13 text-fg transition-colors duration-fast hover:bg-risk-critical/[0.12]"
+          >
+            <span className="size-2 shrink-0 rounded-full bg-risk-critical" aria-hidden />
+            <span className="flex-1">{tp("dashboard.criticalCallout", critical)}</span>
+            <ArrowRight className="size-4 text-fg-3 transition-transform duration-base group-hover:translate-x-0.5" aria-hidden />
+          </Link>
+        )
+      }
+    />
   );
 }
 
-/** Row 1, right — the headline indicators from the brief, each a shortcut to its rule. */
+/** Row 2, left — the headline indicators from the brief as a quiet 3×2 grid, each a shortcut to its rule. */
 function IndicatorsPanel({ d }: { d: DashboardT }) {
   const { t } = useI18n();
   return (
-    <Panel className="flex-1">
-      <PanelHeader title={t("dashboard.keyIndicators")} className="mb-3" />
-      <ul className="grid grid-cols-1 gap-x-8 sm:grid-cols-2">
-        {KPIS.map((k) => (
-          <li key={k.key} className="border-b border-line last:border-0 sm:[&:nth-last-child(2)]:border-0">
-            <Tip content={t(`dashboard.kpi.${k.key}Hint`)}>
-              <Link
-                to={`/findings?rule_id=${k.rule}`}
-                className="-mx-2 flex items-baseline gap-4 rounded-control px-2 py-3 transition-colors duration-fast hover:bg-fg/[0.04]"
-              >
-                <span className="w-8 shrink-0 text-right font-mono text-20 text-fg">{d.counts[k.key] ?? 0}</span>
-                <span className="text-13 text-fg-2">{t(`dashboard.kpi.${k.key}`)}</span>
-              </Link>
-            </Tip>
-          </li>
-        ))}
+    <Panel className="h-full">
+      <PanelHeader title={t("dashboard.keyIndicators")} className="mb-4" />
+      <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {KPIS.map((k) => {
+          const n = d.counts[k.key] ?? 0;
+          return (
+            <li key={k.key}>
+              <Tip content={t(`dashboard.kpi.${k.key}Hint`)}>
+                <Link
+                  to={`/findings?rule_id=${k.rule}`}
+                  className="group flex h-full flex-col rounded-control bg-fg/[0.025] p-4 transition-colors duration-fast hover:bg-fg/[0.06]"
+                >
+                  <AnimatedCounter value={n} className={cn("font-mono text-28 leading-none", n > 0 ? "text-fg" : "text-fg-3")} />
+                  <span className="mt-2 text-13 leading-snug text-fg-2 group-hover:text-fg">{t(`dashboard.kpi.${k.key}`)}</span>
+                </Link>
+              </Tip>
+            </li>
+          );
+        })}
       </ul>
     </Panel>
   );
@@ -321,17 +341,19 @@ export default function Dashboard() {
 
   return (
     <motion.div variants={listMotion} initial="hidden" animate="show" className="grid grid-cols-12 gap-4 lg:gap-6">
+      <motion.div variants={itemMotion} className="col-span-12 min-w-0">
+        <Masthead d={d} />
+      </motion.div>
       <motion.div variants={itemMotion} className="col-span-12 min-w-0 lg:col-span-5">
         <ScorePanel d={d} />
       </motion.div>
-      <motion.div variants={itemMotion} className="col-span-12 flex min-w-0 flex-col gap-4 lg:col-span-7 lg:gap-6">
+      <motion.div variants={itemMotion} className="col-span-12 min-w-0 lg:col-span-7">
         <LevelsPanel d={d} />
+      </motion.div>
+      <motion.div variants={itemMotion} className="col-span-12 min-w-0 lg:col-span-7">
         <IndicatorsPanel d={d} />
       </motion.div>
-      <motion.div variants={itemMotion} className="col-span-12 min-w-0 lg:col-span-6">
-        <RiskDonut counts={d.level_counts} />
-      </motion.div>
-      <motion.div variants={itemMotion} className="col-span-12 min-w-0 lg:col-span-6">
+      <motion.div variants={itemMotion} className="col-span-12 min-w-0 lg:col-span-5">
         <CategoryBar scores={d.category_scores} matrix={d.category_matrix} />
       </motion.div>
       <motion.div variants={itemMotion} className="col-span-12 min-w-0 lg:col-span-8">

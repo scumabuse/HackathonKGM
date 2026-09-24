@@ -1,15 +1,21 @@
 import { useQuery } from "@tanstack/react-query";
 import { Archive, ArrowRight, Globe2, Play, ScrollText, ShieldCheck, Wrench } from "lucide-react";
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { MonoDigits } from "@/components/MonoDigits";
+import { PrivilegePathGraph } from "@/components/PrivilegePathGraph";
+import { RiskChip } from "@/components/RiskBadge";
 import { Button } from "@/components/ui/button";
 import { RadarSweep } from "@/components/ui/radar-sweep";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { itemMotion, listMotion } from "@/lib/motion";
-import { BAND_COLOR, CATEGORIES, CATEGORY_ICON, LEVELS, LEVEL_META } from "@/lib/risk";
+import { pathFindings, useScanModel } from "@/lib/model";
+import { DUR, EASE, itemMotion, listMotion } from "@/lib/motion";
+import { BAND_COLOR, CATEGORIES, CATEGORY_ICON, LEVELS, LEVEL_META, OBJECT_ICON, tint } from "@/lib/risk";
 import { useScan } from "@/lib/scan";
+import { ruleImpacts } from "@/lib/simulate";
+import type { Dashboard, Entity, RiskLevel } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const MODULES = [
@@ -28,28 +34,343 @@ const STEPS = [
   { title: "home.steps.fix", text: "home.steps.fixText" },
 ] as const;
 
-/** The vision screen: one statement, one primary action, a radar that shows the real scan. */
+/** The object picked on the radar — what it is, why it is risky, where to go next. */
+function SelectedObject({ e, onClear }: { e: Entity; onClear: () => void }) {
+  const { t, tp, objectType } = useI18n();
+  const Icon = OBJECT_ICON[e.object_type];
+  return (
+    <motion.div
+      key={e.object_id}
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -4 }}
+      transition={{ duration: DUR.base, ease: EASE }}
+      className="space-y-3"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 text-12 text-fg-3">
+            <Icon className="size-3.5" aria-hidden />
+            {objectType(e.object_type)}
+            {e.tier0 && " · Tier-0"}
+          </div>
+          <div className="mt-1 truncate font-mono text-16 text-fg">{e.object_name}</div>
+        </div>
+        <div className="shrink-0 text-right">
+          <div className="font-mono text-28 leading-none text-fg">{e.score}</div>
+          <RiskChip level={e.level} className="mt-1.5" />
+        </div>
+      </div>
+      <p className="text-13 text-fg-2">
+        {e.top_title}
+        {e.finding_count > 1 && <span className="text-fg-3"> · {tp("radar.findingsN", e.finding_count)}</span>}
+      </p>
+      {e.privilege_path && (
+        <p className="truncate font-mono text-12 text-fg-3" title={e.privilege_path.join(" → ")}>
+          {e.privilege_path.join(" → ")}
+        </p>
+      )}
+      <div className="flex items-center gap-2 pt-1">
+        <Button asChild variant="primary" size="sm">
+          <Link to={`/accounts/${e.object_id}`}>
+            {t("radar.open")} <ArrowRight />
+          </Link>
+        </Button>
+        <Button variant="tertiary" size="sm" onClick={onClear}>
+          {t("radar.clear")}
+        </Button>
+      </div>
+    </motion.div>
+  );
+}
+
+/** Radar card: level filters, the interactive scope and either the picked object or the legend. */
+function RadarCard({ d }: { d: Dashboard | undefined }) {
+  const { t, tp, level } = useI18n();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [shown, setShown] = useState<ReadonlySet<RiskLevel>>(() => new Set(LEVELS));
+  const entities = d?.top_risky ?? [];
+  const selected = entities.find((e) => e.object_id === selectedId && shown.has(e.level));
+
+  const toggle = (l: RiskLevel) =>
+    setShown((prev) => {
+      const next = new Set(prev);
+      if (next.has(l) && next.size > 1) next.delete(l);
+      else next.add(l);
+      return next;
+    });
+
+  const total = LEVELS.reduce((s, l) => s + (d?.level_counts[l] ?? 0), 0);
+  return (
+    <div className="panel relative mx-auto w-full max-w-[520px] p-6 sm:p-7">
+      {d && (
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <span className="kicker truncate">{d.scan.domain}</span>
+          <span className="tech shrink-0">
+            {total} {tp("charts.objectsAtRisk", total)}
+          </span>
+        </div>
+      )}
+      {d && (
+        <div className="mb-5 flex flex-wrap gap-1.5" role="group" aria-label={t("radar.filter")}>
+          {LEVELS.map((l) => (
+            <button
+              key={l}
+              type="button"
+              aria-pressed={shown.has(l)}
+              onClick={() => toggle(l)}
+              className={cn(
+                "inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-12 transition-colors duration-fast",
+                shown.has(l) ? "border-line-strong bg-raised text-fg" : "border-transparent bg-fg/[0.04] text-fg-3 hover:text-fg",
+              )}
+            >
+              <span className={cn("size-2 rounded-full", LEVEL_META[l].dot, !shown.has(l) && "opacity-40")} aria-hidden />
+              {level(l)}
+              <span className="font-mono">{d.level_counts[l]}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      <RadarSweep entities={entities} selectedId={selected?.object_id ?? null} onSelect={setSelectedId} visible={shown} className="mx-auto max-w-[380px]" />
+      <div className="mt-6 min-h-[132px] border-t border-line pt-5">
+        {!d ? (
+          <p className="text-center text-13 text-fg-3">{t("home.noScanTile")}</p>
+        ) : (
+          <AnimatePresence mode="wait" initial={false}>
+            {selected ? (
+              <SelectedObject e={selected} onClear={() => setSelectedId(null)} />
+            ) : (
+              <motion.div key="legend" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: DUR.fast }}>
+                <p className="text-14 font-medium text-fg">{t("radar.hint")}</p>
+                <p className="mt-1.5 text-13 text-fg-3">{t("home.radarLegend")}</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Kpi({ to, label, hint, children, extra, className }: { to: string; label: string; hint: string; children: ReactNode; extra?: ReactNode; className?: string }) {
+  return (
+    <Link
+      to={to}
+      className={cn("panel group relative flex flex-col overflow-hidden p-5 transition-[transform,box-shadow] duration-base ease-out hover:-translate-y-0.5 hover:shadow-overlay", className)}
+    >
+      <div className="tech">{label}</div>
+      <div className="mt-3 flex items-baseline gap-2">{children}</div>
+      {extra}
+      <p className="mt-auto pt-3 text-12 text-fg-3">{hint}</p>
+    </Link>
+  );
+}
+
+// AD Security Score bands (bandFor in lib/risk): < 40 Critical, 40–59 Poor, 60–79 Fair, ≥ 80 Good.
+const BAND_SEGMENTS = [
+  { band: "Critical", from: 0, to: 40 },
+  { band: "Poor", from: 40, to: 60 },
+  { band: "Fair", from: 60, to: 80 },
+  { band: "Good", from: 80, to: 100 },
+] as const;
+
+/** Thin 0–100 scale with the four bands and a marker at the current score. */
+function ScoreScale({ score }: { score: number }) {
+  return (
+    <div className="mt-4" aria-hidden>
+      <div className="relative h-1.5">
+        <div className="flex h-full overflow-hidden rounded-full">
+          {BAND_SEGMENTS.map((s) => (
+            <span
+              key={s.band}
+              className="h-full border-raised last:border-0 [border-right-width:2px]"
+              style={{ width: `${s.to - s.from}%`, background: tint(BAND_COLOR[s.band], 38) }}
+            />
+          ))}
+        </div>
+        <motion.span
+          className="absolute -top-1 h-3.5 w-0.5 rounded-full bg-fg"
+          initial={{ left: "0%" }}
+          animate={{ left: `calc(${score}% - 1px)` }}
+          transition={{ duration: 0.9, ease: EASE, delay: 0.2 }}
+        />
+      </div>
+      <div className="relative mt-1.5 h-4 font-mono text-12 text-fg-3">
+        {[0, 40, 60, 80, 100].map((n) => (
+          <span key={n} className="absolute top-0" style={{ left: `${n}%`, transform: `translateX(${n === 0 ? 0 : n === 100 ? -100 : -50}%)` }}>
+            {n}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Real distribution of the at-risk objects by level, as one stacked hairline bar. */
+function LevelStrip({ counts }: { counts: Record<RiskLevel, number> }) {
+  const total = LEVELS.reduce((s, l) => s + counts[l], 0) || 1;
+  return (
+    <div className="mt-4 flex h-1.5 gap-0.5 overflow-hidden rounded-full" aria-hidden>
+      {LEVELS.map((l) => (
+        <span key={l} className={cn("h-full", LEVEL_META[l].dot)} style={{ width: `${(counts[l] / total) * 100}%` }} />
+      ))}
+    </div>
+  );
+}
+
+/** The story under the hero: the numbers, what they mean, the worst object and the best first fixes. */
+function Overview({ d }: { d: Dashboard }) {
+  const { t, objectType } = useI18n();
+  const { findings, params, ruleName } = useScanModel();
+  const totalAtRisk = LEVELS.reduce((s, l) => s + d.level_counts[l], 0);
+  const paths = pathFindings(findings);
+  const top = d.top_risky[0];
+  const topFinding = findings?.filter((f) => f.object_id === top?.object_id).sort((a, b) => b.rule_weight - a.rule_weight)[0];
+  const impacts = useMemo(() => (findings && params ? ruleImpacts(findings, params).filter((r) => r.gain > 0).slice(0, 3) : []), [findings, params]);
+  const TopIcon = top ? OBJECT_ICON[top.object_type] : null;
+  const critCut = params?.levels.critical ?? 80;
+
+  return (
+    <motion.section variants={itemMotion} className="space-y-6">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.7fr)_repeat(3,minmax(0,1fr))]">
+        <Kpi
+          to="/dashboard"
+          label={t("overview.kpiScore")}
+          hint={t("overview.kpiScoreHint")}
+          extra={<ScoreScale score={d.ad_security_score} />}
+          className="sm:col-span-2 lg:col-span-1"
+        >
+          <span className="font-mono text-56 font-medium leading-none text-fg">{d.ad_security_score}</span>
+          <span className="font-mono text-16 text-fg-3">/100</span>
+          <span className="ml-auto inline-flex items-center gap-1.5 self-center text-14 text-fg-2">
+            <span className="size-2 rounded-full" style={{ background: BAND_COLOR[d.score_band] }} aria-hidden />
+            {t(`bands.${d.score_band}`)}
+          </span>
+        </Kpi>
+        <Kpi
+          to="/findings?level=Critical"
+          label={t("overview.kpiCritical")}
+          hint={t("overview.kpiCriticalHint", { n: critCut })}
+          className="before:absolute before:inset-x-0 before:top-0 before:h-0.5 before:bg-risk-critical before:content-['']"
+        >
+          <span className="font-mono text-40 text-risk-critical">{d.level_counts.Critical}</span>
+        </Kpi>
+        <Kpi to="/findings" label={t("overview.kpiObjects")} hint={t("overview.kpiObjectsHint")} extra={<LevelStrip counts={d.level_counts} />}>
+          <span className="font-mono text-40 text-fg">{totalAtRisk}</span>
+        </Kpi>
+        <Kpi to="/paths" label={t("overview.kpiPaths")} hint={t("overview.kpiPathsHint")}>
+          <span className="font-mono text-40 text-fg">{findings ? paths.length : "—"}</span>
+          <svg viewBox="0 0 48 8" className="ml-auto h-2 w-12 self-center text-fg-3" aria-hidden>
+            <path d="M4 4H44" stroke="currentColor" strokeWidth="1" strokeDasharray="2 2" />
+            {[4, 17, 30].map((x) => (
+              <circle key={x} cx={x} cy="4" r="2.4" fill="rgb(var(--raised))" stroke="currentColor" strokeWidth="1" />
+            ))}
+            <circle cx="44" cy="4" r="2.8" className="fill-risk-critical" />
+          </svg>
+        </Kpi>
+      </div>
+      <p className="max-w-[80ch] text-13 text-fg-2">{t("overview.explain", { score: d.ad_security_score, objects: totalAtRisk })}</p>
+
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
+        {top && TopIcon && (
+          <div className="panel flex flex-col p-6">
+            <div className="kicker">{t("overview.mainRisk")}</div>
+            <div className="mt-4 flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <h2 className="display truncate text-28">{top.object_name}</h2>
+                <div className="mt-1 flex items-center gap-2 text-13 text-fg-3">
+                  <TopIcon className="size-4" aria-hidden />
+                  {objectType(top.object_type)}
+                  {top.tier0 && " · Tier-0"}
+                </div>
+              </div>
+              <div className="shrink-0 text-right">
+                <div className="font-mono text-40 leading-none text-fg">{top.score}</div>
+                <RiskChip level={top.level} className="mt-2" />
+              </div>
+            </div>
+            <p className="mt-4 text-14 text-fg">{top.top_title}</p>
+            {topFinding?.recommendation && <p className="mt-2 text-13 text-fg-2">{topFinding.recommendation}</p>}
+            {top.privilege_path && (
+              <div className="mt-4">
+                <PrivilegePathGraph path={top.privilege_path} edges={top.path_edges} compact />
+              </div>
+            )}
+            <div className="mt-auto flex flex-wrap gap-2 pt-5">
+              <Button asChild variant="secondary" size="sm">
+                <Link to={`/accounts/${top.object_id}`}>
+                  {t("overview.openObject")} <ArrowRight />
+                </Link>
+              </Button>
+              {paths.length > 0 && (
+                <Button asChild variant="tertiary" size="sm">
+                  <Link to="/paths">
+                    {t("overview.explorePaths")} <ArrowRight />
+                  </Link>
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="panel flex flex-col p-6">
+          <div className="kicker">{t("overview.priorities")}</div>
+          <p className="mt-2 text-13 text-fg-3">{t("overview.prioritiesSub")}</p>
+          <ol className="mt-4 space-y-2">
+            {impacts.map((r, i) => {
+              const Icon = CATEGORY_ICON[r.category];
+              return (
+                <li key={r.rule_id} className="flex items-center gap-3 rounded-control bg-fg/[0.03] px-3 py-3">
+                  <span className="w-5 shrink-0 font-serif text-20 italic text-brand">{i + 1}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-14 text-fg">{ruleName(r.rule_id)}</div>
+                    <div className="mt-0.5 flex items-center gap-1.5 truncate text-12 text-fg-3">
+                      <Icon className="size-3.5 shrink-0" aria-hidden />
+                      <span className="font-mono">{r.rule_id}</span>
+                    </div>
+                  </div>
+                  <div className="shrink-0 text-right" title={t("overview.gainHint")}>
+                    <div className="font-mono text-16 text-risk-low">{t("overview.gain", { n: r.gain })}</div>
+                    <div className="text-12 text-fg-3">{t("overview.gainHint")}</div>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+          <div className="mt-auto pt-5">
+            <Button asChild variant="secondary" size="sm">
+              <Link to={`/simulator?fix=${impacts.map((r) => r.rule_id).join(",")}`}>
+                {t("overview.openSimulator")} <ArrowRight />
+              </Link>
+            </Button>
+          </div>
+        </div>
+      </div>
+    </motion.section>
+  );
+}
+
+/** The vision screen: one statement, one primary action, a radar that shows the real scan, then the story. */
 export default function PlatformHome() {
-  const { t, tp, lang, level } = useI18n();
+  const { t, tp, lang } = useI18n();
   const navigate = useNavigate();
   const { runScan, running } = useScan();
   const { data: d } = useQuery({ queryKey: ["dashboard", "latest", lang, "radar"], queryFn: () => api.dashboard("latest", 50), retry: false });
   const { data: rules } = useQuery({ queryKey: ["rules", lang], queryFn: api.rules, staleTime: 300_000 });
-  const totalAtRisk = d ? LEVELS.reduce((s, l) => s + d.level_counts[l], 0) : 0;
 
   return (
-    <motion.div variants={listMotion} initial="hidden" animate="show" className="space-y-20 pb-8">
+    <motion.div variants={listMotion} initial="hidden" animate="show" className="space-y-16 pb-8">
       {/* ------------------------------------------------------------ hero */}
-      <section className="relative grid items-center gap-12 overflow-x-clip pt-4 lg:grid-cols-[1.05fr_0.95fr] lg:pt-10">
+      <section className="relative grid grid-cols-[minmax(0,1fr)] items-center gap-10 overflow-x-clip lg:grid-cols-[minmax(0,1fr)_minmax(0,520px)] lg:gap-12">
         <motion.div variants={itemMotion} className="max-w-xl">
           <div className="kicker">{t("home.eyebrow")}</div>
-          <h1 className="display mt-5 text-40 leading-[1.1] sm:text-56 sm:leading-[1.08]">
+          <h1 className="display mt-5 text-40 leading-[1.08] tracking-[-0.02em]">
             {t("home.heroA")}
             {t("home.heroB")}
             {t("home.heroC")}
           </h1>
-          <p className="mt-6 max-w-[56ch] text-16 text-fg-2">{t("home.heroText")}</p>
-          <div className="mt-8 flex flex-wrap items-center gap-3">
+          <p className="mt-5 max-w-[46ch] text-16 text-fg-2">{t("home.heroText")}</p>
+          <div className="mt-7 flex flex-wrap items-center gap-3">
             <Button variant="primary" size="lg" onClick={() => runScan()} disabled={running}>
               <Play /> {t("home.runIdentityScan")}
             </Button>
@@ -60,44 +381,13 @@ export default function PlatformHome() {
           <p className="mt-5 text-13 text-fg-3">{t("home.offline")}</p>
         </motion.div>
 
-        <motion.figure variants={itemMotion} className="panel relative mx-auto w-full max-w-[440px] p-8">
-          <RadarSweep entities={d?.top_risky ?? []} className="mx-auto max-w-[320px]" />
-          <figcaption className="mt-8">
-            {d ? (
-              <div className="space-y-4 border-t border-line pt-5">
-                <div className="flex items-end justify-between gap-6">
-                  <div>
-                    <div className="eyebrow">{t("common.adSecurityScore")}</div>
-                    <div className="mt-1 flex items-baseline gap-2">
-                      <span className="font-mono text-28 text-fg">{d.ad_security_score}</span>
-                      <span className="inline-flex items-center gap-1.5 text-13 text-fg-2">
-                        <span className="size-2 rounded-full" style={{ background: BAND_COLOR[d.score_band] }} aria-hidden />
-                        {t(`bands.${d.score_band}`)}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-mono text-28 text-fg">{totalAtRisk}</div>
-                    <div className="text-12 text-fg-3">{tp("charts.objectsAtRisk", totalAtRisk)}</div>
-                  </div>
-                </div>
-                <ul className="flex flex-wrap gap-x-5 gap-y-1">
-                  {LEVELS.map((l) => (
-                    <li key={l} className="flex items-center gap-2 text-13">
-                      <span className={cn("size-2 rounded-full", LEVEL_META[l].dot)} aria-hidden />
-                      <span className="text-fg-2">{level(l)}</span>
-                      <span className="font-mono text-fg">{d.level_counts[l]}</span>
-                    </li>
-                  ))}
-                </ul>
-                <p className="text-12 text-fg-3">{t("home.radarLegend")}</p>
-              </div>
-            ) : (
-              <p className="border-t border-line pt-5 text-center text-13 text-fg-3">{t("home.noScanTile")}</p>
-            )}
-          </figcaption>
+        <motion.figure variants={itemMotion} className="w-full">
+          <RadarCard d={d} />
         </motion.figure>
       </section>
+
+      {/* ------------------------------------------------------------ numbers, main risk, first fixes */}
+      {d && <Overview d={d} />}
 
       {/* ------------------------------------------------------------ modules: uniform cards */}
       <motion.section variants={itemMotion}>

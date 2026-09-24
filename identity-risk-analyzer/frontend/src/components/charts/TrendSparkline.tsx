@@ -10,10 +10,10 @@ interface Point {
   trigger?: string;
 }
 
-const INK = "rgb(var(--fg-2))";
+const INK = "rgb(var(--fg))";
 
 /**
- * Small score-over-time sparkline: 2px neutral line, 10% wash, ringed end-dot, crosshair tooltip.
+ * Small score-over-time sparkline: 2px ink line, soft wash, ringed end-dot, crosshair tooltip.
  * The first/last dates and the current value are labelled, so the tooltip never gates a value.
  */
 export function TrendSparkline({ points, label, valueLabel, height = 56 }: { points: Point[]; label: string; valueLabel: string; height?: number }) {
@@ -37,16 +37,16 @@ export function TrendSparkline({ points, label, valueLabel, height = 56 }: { poi
 
   return (
     <figure aria-label={`${label}: ${points.map((p) => p.score).join(", ")}`}>
-      <figcaption className="mb-2 flex items-baseline justify-between text-12">
-        <span className="text-fg-3">{label}</span>
-        <span className="font-mono text-fg-2">{last.score}</span>
+      <figcaption className="mb-2 flex items-baseline justify-between">
+        <span className="tech">{label}</span>
+        <span className="font-mono text-14 text-fg">{last.score}</span>
       </figcaption>
       <div style={{ height }}>
         <ResponsiveContainer>
           <AreaChart data={points} margin={{ top: 6, right: 6, bottom: 2, left: 6 }}>
             <defs>
               <linearGradient id="spark-wash" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={INK} stopOpacity={0.12} />
+                <stop offset="0%" stopColor={INK} stopOpacity={0.14} />
                 <stop offset="100%" stopColor={INK} stopOpacity={0} />
               </linearGradient>
             </defs>
@@ -79,7 +79,7 @@ export function TrendSparkline({ points, label, valueLabel, height = 56 }: { poi
               dot={EndDot}
               activeDot={{ r: 4, fill: "rgb(var(--fg))", stroke: "rgb(var(--raised))", strokeWidth: 2 }}
               isAnimationActive={!reduce}
-              animationDuration={700}
+              animationDuration={900}
             />
           </AreaChart>
         </ResponsiveContainer>

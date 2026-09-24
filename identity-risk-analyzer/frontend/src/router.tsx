@@ -7,8 +7,10 @@ import { useI18n } from "./lib/i18n";
 import AccountDetail from "./pages/AccountDetail";
 import Dashboard from "./pages/Dashboard";
 import Findings from "./pages/Findings";
+import Paths from "./pages/Paths";
 import PlatformHome from "./pages/PlatformHome";
 import Settings from "./pages/Settings";
+import Simulator from "./pages/Simulator";
 
 function NotFound() {
   const { t } = useI18n();
@@ -32,6 +34,8 @@ export const router = createBrowserRouter([
           { path: "/dashboard", element: <Dashboard /> },
           { path: "/findings", element: <Findings /> },
           { path: "/accounts/:objectId", element: <AccountDetail /> },
+          { path: "/paths", element: <Paths /> },
+          { path: "/simulator", element: <Simulator /> },
           { path: "/settings", element: <Settings /> },
           { path: "*", element: <NotFound /> },
         ],

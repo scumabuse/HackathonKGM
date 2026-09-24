@@ -6,7 +6,7 @@ import { useSearchParams } from "react-router-dom";
 import { ExportMenu } from "@/components/ExportMenu";
 import { FindingDetailSheet } from "@/components/FindingDetailSheet";
 import { MonoDigits } from "@/components/MonoDigits";
-import { RiskChip, ScoreCell } from "@/components/RiskBadge";
+import { ScoreCell } from "@/components/RiskBadge";
 import { ErrorState, NoScanYet, StateBlock, isNotFound } from "@/components/States";
 import { Button, type ButtonProps } from "@/components/ui/button";
 import { Panel } from "@/components/ui/card";
@@ -42,13 +42,32 @@ const COLUMNS: { key: string; label: TKey; sort: SortKey; className: string }[] 
   { key: "first", label: "findings.th.firstSeen", sort: "first_seen", className: "hidden w-28 pr-5 2xl:table-cell" },
 ];
 
+/** Compact level mark for dense tables: shape-coded icon in the risk color + the word in ink, no fill. */
+function LevelMark({ level }: { level: Finding["level"] }) {
+  const { level: levelName } = useI18n();
+  const m = LEVEL_META[level];
+  const Icon = m.icon;
+  return (
+    <span className="inline-flex h-6 items-center gap-1.5 whitespace-nowrap text-13 text-fg-2">
+      <Icon className="size-3.5 shrink-0" style={{ color: m.color }} aria-hidden />
+      {levelName(level)}
+    </span>
+  );
+}
+
 function toggleIn(list: string[], v: string) {
   return list.includes(v) ? list.filter((x) => x !== v) : [...list, v];
 }
 
 /** Dropdown trigger for a filter — forwards ref/props so Radix can attach to it. */
 const FilterButton = forwardRef<HTMLButtonElement, ButtonProps & { active?: boolean }>(({ children, active, className, ...p }, ref) => (
-  <Button ref={ref} variant="secondary" size="sm" className={cn("h-9 gap-1.5 text-13", active && "bg-fg/[0.06]", className)} {...p}>
+  <Button
+    ref={ref}
+    variant="secondary"
+    size="sm"
+    className={cn("h-10 gap-1.5 border-line bg-raised text-13 shadow-panel hover:bg-raised hover:text-fg", active && "border-line-strong text-fg", className)}
+    {...p}
+  >
     {children}
     <ChevronDown className="!size-3.5 text-fg-3" />
   </Button>
@@ -128,12 +147,15 @@ export default function Findings() {
   if (error) return <ErrorState error={error} />;
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="display text-28" aria-live="polite">
-          {data ? <MonoDigits text={tp("findings.count", data.total)} /> : "…"}
-        </h1>
-        <div className="flex items-center gap-2">
+    <div className="space-y-5">
+      <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+        <div className="min-w-0">
+          <div className="kicker">{t("nav.findings")}</div>
+          <h1 className="display mt-3 text-40 leading-[1.1]" aria-live="polite">
+            {data ? <MonoDigits text={tp("findings.count", data.total)} /> : "…"}
+          </h1>
+        </div>
+        <div className="flex items-center gap-2 pb-1">
           {/* headers sort on wide screens; this menu keeps every sort reachable where columns are hidden */}
           <div className="2xl:hidden">
             <DropdownMenu>
@@ -161,37 +183,20 @@ export default function Findings() {
           </div>
           <ExportMenu scanId={data?.scan_id} filters={anyFilter ? filters : undefined} />
         </div>
-      </div>
+      </header>
 
-      {/* ---- one filter row above everything it scopes ---- */}
+      {/* ---- filters, two tiers: search + scope dropdowns, then the level toggles ---- */}
+      <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-[16rem] flex-1 sm:max-w-sm">
+        <div className="relative min-w-[16rem] flex-1 sm:max-w-md">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-fg-3" aria-hidden />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("findings.search")} className="pl-9" aria-label={t("findings.searchLabel")} />
-        </div>
-
-        <div className="flex h-9 items-center rounded-control bg-fg/[0.05] p-0.5" role="group" aria-label={t("findings.th.level")}>
-          {LEVELS.map((l) => {
-            const on = levels.includes(l);
-            const Icon = LEVEL_META[l].icon;
-            return (
-              <button
-                key={l}
-                type="button"
-                aria-pressed={on}
-                title={levelName(l)}
-                onClick={() => update({ level: toggleIn(levels, l).join(",") || null })}
-                className={cn(
-                  "inline-flex h-8 items-center gap-1.5 rounded-inner px-2.5 text-13 transition-colors duration-fast",
-                  on ? "bg-raised text-fg shadow-panel" : "text-fg-3 hover:text-fg",
-                )}
-              >
-                <Icon className="size-3.5" style={{ color: LEVEL_META[l].color }} aria-hidden />
-                {/* phones: shape-coded icons only (the label stays for screen readers and in the tooltip) */}
-                <span className="sr-only sm:not-sr-only">{levelName(l)}</span>
-              </button>
-            );
-          })}
+          <Input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder={t("findings.search")}
+            className="h-10 bg-raised pl-9 shadow-panel"
+            aria-label={t("findings.searchLabel")}
+          />
         </div>
 
         <DropdownMenu>
@@ -233,7 +238,7 @@ export default function Findings() {
         </DropdownMenu>
 
         {ruleId && (
-          <span className="inline-flex h-9 items-center gap-1.5 rounded-control bg-fg/[0.06] pl-3 pr-1.5 font-mono text-12 text-fg">
+          <span className="inline-flex h-10 items-center gap-1.5 rounded-control bg-fg/[0.06] pl-3 pr-1.5 font-mono text-12 text-fg">
             {ruleId}
             <button
               type="button"
@@ -245,12 +250,33 @@ export default function Findings() {
             </button>
           </span>
         )}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label={t("findings.th.level")}>
+        {LEVELS.map((l) => {
+          const on = levels.includes(l);
+          return (
+            <button
+              key={l}
+              type="button"
+              aria-pressed={on}
+              onClick={() => update({ level: toggleIn(levels, l).join(",") || null })}
+              className={cn(
+                "inline-flex h-8 items-center gap-2 rounded-full border px-3 text-13 transition-[background-color,border-color,color,box-shadow] duration-fast",
+                on ? "border-line-strong bg-raised text-fg shadow-panel" : "border-transparent bg-fg/[0.04] text-fg-2 hover:bg-fg/[0.07] hover:text-fg",
+              )}
+            >
+              <span className={cn("size-2 rounded-full transition-transform duration-fast", LEVEL_META[l].dot, on && "scale-125")} aria-hidden />
+              {levelName(l)}
+            </button>
+          );
+        })}
         {anyFilter && (
-          <Button variant="tertiary" size="text" onClick={clearFilters} className="px-1">
-            {t("findings.clearFilters")}
+          <Button variant="tertiary" size="text" onClick={clearFilters} className="ml-2 px-1">
+            <X /> {t("findings.clearFilters")}
           </Button>
         )}
-
+      </div>
       </div>
 
       {/* ---- the table ---- */}
@@ -290,7 +316,7 @@ export default function Findings() {
                             type="button"
                             onClick={() => sortBy(c.sort)}
                             aria-label={t("findings.sortAria", { name: t(c.label) })}
-                            className={cn("eyebrow inline-flex items-center gap-1 transition-colors duration-fast hover:text-fg", active && "text-fg")}
+                            className={cn("tech inline-flex items-center gap-1 transition-colors duration-fast hover:text-fg", active && "text-fg")}
                           >
                             {t(c.label)}
                             {active && (order === "desc" ? <ArrowDown className="size-3" /> : <ArrowUp className="size-3" />)}
@@ -304,6 +330,7 @@ export default function Findings() {
                   {data?.items.map((f, i) => {
                     const TypeIcon = OBJECT_ICON[f.object_type];
                     const CatIcon = CATEGORY_ICON[f.category];
+                    const isSel = selected?.id === f.id;
                     return (
                       <motion.tr
                         key={f.id}
@@ -316,44 +343,54 @@ export default function Findings() {
                         initial={i < 14 ? { opacity: 0 } : false}
                         animate={{ opacity: 1 }}
                         transition={{ duration: DUR.base, ease: EASE, delay: Math.min(i, 14) * 0.025 }}
-                        className="cursor-pointer border-b border-line outline-none transition-colors duration-fast last:border-0 hover:bg-fg/[0.03] focus-visible:bg-fg/[0.05]"
+                        className={cn(
+                          "group cursor-pointer border-b border-line outline-none transition-colors duration-fast last:border-0",
+                          // a thin rail on the left edge marks the hovered / focused / open row (same idiom as the sidebar)
+                          "[&>td:first-child]:transition-shadow [&>td:first-child]:duration-fast",
+                          isSel
+                            ? "bg-fg/[0.045] [&>td:first-child]:[box-shadow:inset_2px_0_0_rgb(var(--brand))]"
+                            : "hover:bg-fg/[0.025] focus-visible:bg-fg/[0.045] [&:focus-visible>td:first-child]:[box-shadow:inset_2px_0_0_rgb(var(--fg))] [&:hover>td:first-child]:[box-shadow:inset_2px_0_0_rgb(var(--fg)/0.35)]",
+                        )}
                       >
-                        <td className="py-3 pl-5 pr-3 align-top">
-                          <RiskChip level={f.level} />
+                        <td className="py-3.5 pl-5 pr-3 align-top">
+                          <LevelMark level={f.level} />
                         </td>
-                        <td className="py-3 pr-3 align-top">
-                          <ScoreCell score={f.score} level={f.level} className="mt-0.5" />
+                        <td className="py-3.5 pr-3 align-top">
+                          <ScoreCell score={f.score} level={f.level} className="text-16 font-medium [&>span:first-child]:h-4 [&>span:first-child]:w-[3px]" />
                         </td>
-                        <td className="py-3 pr-3 align-top">
-                          <div className="truncate text-14 text-fg">{f.title}</div>
-                          <div className="truncate font-mono text-12 text-fg-3">
+                        <td className="py-3.5 pr-3 align-top">
+                          <div className="truncate text-14 font-medium text-fg">{f.title}</div>
+                          <div className="mt-0.5 truncate font-mono text-12 text-fg-3">
                             {f.rule_id}
                             {f.mitre.length > 0 && ` · ${f.mitre.join(", ")}`}
                           </div>
                         </td>
-                        <td className="py-3 pr-3 align-top">
+                        <td className="py-3.5 pr-3 align-top">
                           <div className="flex min-w-0 items-start gap-2">
                             <TypeIcon className="mt-0.5 size-4 shrink-0 text-fg-3" aria-hidden />
                             <div className="min-w-0">
-                              <div className="truncate font-mono text-fg">{f.object_name}</div>
+                              <div className="truncate font-mono text-fg-2 transition-colors duration-fast group-hover:text-fg">{f.object_name}</div>
                               <div className="truncate text-12 text-fg-3">{objectTypeName(f.object_type)}</div>
                             </div>
                           </div>
                         </td>
-                        <td className="hidden py-3 pr-3 align-top xl:table-cell">
-                          <span className="inline-flex items-center gap-1.5 text-fg-2">
-                            <CatIcon className="size-3.5 text-fg-3" aria-hidden /> {categoryName(f.category)}
+                        <td className="hidden py-3.5 pr-3 align-top xl:table-cell">
+                          <span className="inline-flex items-center gap-1.5 text-fg-3">
+                            <CatIcon className="size-3.5" aria-hidden /> {categoryName(f.category)}
                           </span>
                         </td>
-                        <td className="hidden py-3 pr-3 align-top lg:table-cell">
+                        <td className="hidden py-3.5 pr-3 align-top lg:table-cell">
                           <div className="mt-1 flex items-center gap-2">
-                            <span className="h-1 w-12 overflow-hidden rounded-full bg-fg/[0.08]">
-                              <span className="block h-full rounded-full bg-fg-3" style={{ width: `${f.rule_weight * 100}%` }} />
+                            <span className="h-1.5 w-14 overflow-hidden rounded-full bg-fg/[0.06]">
+                              <span
+                                className="block h-full rounded-full bg-fg/30 transition-colors duration-fast group-hover:bg-fg/50"
+                                style={{ width: `${f.rule_weight * 100}%` }}
+                              />
                             </span>
-                            <span className="font-mono text-12 text-fg-2">{f.rule_weight.toFixed(2)}</span>
+                            <span className="font-mono text-12 text-fg-3">{f.rule_weight.toFixed(2)}</span>
                           </div>
                         </td>
-                        <td className="hidden py-3 pr-5 align-top font-mono text-12 text-fg-3 2xl:table-cell" title={fmtDateTime(f.first_seen)}>
+                        <td className="hidden py-3.5 pr-5 align-top font-mono text-12 text-fg-3 2xl:table-cell" title={fmtDateTime(f.first_seen)}>
                           <span className="mt-1 block">{fmtDate(f.first_seen)}</span>
                         </td>
                       </motion.tr>
@@ -368,10 +405,10 @@ export default function Findings() {
                 <li key={f.id}>
                   <button type="button" onClick={() => setSelected(f)} className="w-full px-4 py-3 text-left transition-colors duration-fast active:bg-fg/[0.04]">
                     <div className="flex items-center justify-between gap-2">
-                      <RiskChip level={f.level} />
-                      <ScoreCell score={f.score} level={f.level} />
+                      <LevelMark level={f.level} />
+                      <ScoreCell score={f.score} level={f.level} className="font-medium" />
                     </div>
-                    <div className="mt-2 text-14 text-fg">{f.title}</div>
+                    <div className="mt-2 text-14 font-medium text-fg">{f.title}</div>
                     <div className="mt-0.5 truncate font-mono text-12 text-fg-3">
                       {f.object_name} · {f.rule_id}
                     </div>

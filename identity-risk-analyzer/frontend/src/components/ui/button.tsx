@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
  * The default is `secondary`, so a primary is always an explicit choice.
  */
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-control font-medium transition-colors duration-fast ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-base disabled:pointer-events-none disabled:opacity-45 [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-control font-medium transition-[color,background-color,border-color,transform] duration-fast ease-out active:translate-y-px [&_.lucide-arrow-right]:transition-transform [&_.lucide-arrow-right]:duration-base [&:hover_.lucide-arrow-right]:translate-x-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-base disabled:pointer-events-none disabled:opacity-45 [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {

@@ -130,6 +130,8 @@ const ru: Dict = {
     complete: "Скан завершён",
     completeDesc: "AD Security Score {score}/100 · находок: {findings} на объектах: {objects}",
     failed: "Скан не удался",
+    openDashboard: "Открыть дашборд",
+    skip: "Esc — пропустить",
   },
   states: {
     noScanTitle: "Сканов ещё нет",
@@ -327,6 +329,19 @@ const ru: Dict = {
     account: "учётная запись",
     nestedGroup: "вложенная группа",
     criticalGroup: "критическая группа",
+  },
+  live: {
+    score: "{domain}: {score} из 100.",
+    path: "{type} {name} — в {hops} от {target}.",
+    hidden: "{type} {name} — скрытый член {target}.",
+    hops: { one: "{n} шаге", few: "{n} шагах", many: "{n} шагах", other: "{n} шагах" },
+    critical: {
+      one: "{n} критический объект требует внимания.",
+      few: "{n} критических объекта требуют внимания.",
+      many: "{n} критических объектов требуют внимания.",
+      other: "{n} критических объекта требуют внимания.",
+    },
+    clean: "Критических объектов и путей эскалации не найдено.",
   },
   overview: {
     kpiScore: "Безопасность домена",

@@ -57,6 +57,38 @@
     color-scheme: dark;
   }
 
+  /*
+    Instrument surface: the one dark, glowing object on an otherwise light page (radar, scan scene).
+    It re-declares the tokens locally, so everything inside — text, chips, buttons, risk colors — follows.
+    In the dark theme it goes one step deeper so it still reads as the focal object.
+  */
+  .instrument {
+    --base: 13 12 11;
+    --raised: 21 20 18;
+    --overlay: 32 30 27;
+    --fg: 238 234 227;
+    --fg-2: 182 175 166;
+    --fg-3: 140 133 124;
+    --line: rgb(255 250 240 / 0.08);
+    --line-strong: rgb(255 250 240 / 0.15);
+    --accent: 238 234 227;
+    --accent-fg: 21 20 18;
+    --brand: 214 132 114;
+    --risk-critical: 240 70 76;
+    --risk-high: 241 150 65;
+    --risk-medium: 233 214 73;
+    --risk-low: 63 185 138;
+    --panel-shadow: 0 24px 48px -24px rgb(0 0 0 / 0.55), 0 0 0 1px rgb(255 250 240 / 0.06);
+    --overlay-shadow: 0 16px 40px -12px rgb(0 0 0 / 0.6), 0 0 0 1px rgb(255 255 255 / 0.08);
+    color-scheme: dark;
+    color: rgb(var(--fg));
+  }
+  .dark .instrument {
+    --base: 7 7 6;
+    --raised: 11 10 9;
+    --overlay: 24 22 20;
+  }
+
   * {
     border-color: var(--line);
   }

@@ -130,6 +130,8 @@ const kk: Dict = {
     complete: "Сканерлеу аяқталды",
     completeDesc: "AD Security Score {score}/100 · {objects} объектіде {findings} мәселе",
     failed: "Сканерлеу сәтсіз аяқталды",
+    openDashboard: "Бақылау тақтасын ашу",
+    skip: "Esc — өткізіп жіберу",
   },
   states: {
     noScanTitle: "Сканерлеу әлі жоқ",
@@ -327,6 +329,14 @@ const kk: Dict = {
     account: "тіркелгі",
     nestedGroup: "кірістірілген топ",
     criticalGroup: "сыни топ",
+  },
+  live: {
+    score: "{domain}: 100-ден {score}.",
+    path: "{type} {name} — {target} тобынан {hops} қашықтықта.",
+    hidden: "{type} {name} — {target} тобының жасырын мүшесі.",
+    hops: { one: "{n} қадам", other: "{n} қадам" },
+    critical: { one: "{n} сыни объект назар аударуды қажет етеді.", other: "{n} сыни объект назар аударуды қажет етеді." },
+    clean: "Сыни объектілер мен эскалация жолдары табылмады.",
   },
   overview: {
     kpiScore: "Домен қауіпсіздігі",

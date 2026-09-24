@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Archive, ArrowRight, Globe2, Play, ScrollText, ShieldCheck, Wrench } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useMemo, useState, type ReactNode } from "react";
+import { Fragment, useMemo, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { MonoDigits } from "@/components/MonoDigits";
 import { PrivilegePathGraph } from "@/components/PrivilegePathGraph";
@@ -33,6 +33,65 @@ const STEPS = [
   { title: "home.steps.explain", text: "home.steps.explainText" },
   { title: "home.steps.fix", text: "home.steps.fixText" },
 ] as const;
+
+/** Fill a dictionary template ("{name} is {hops} away…") with React nodes instead of strings. */
+function fillTemplate(tpl: string, parts: Record<string, ReactNode>) {
+  return tpl.split(/(\{\w+\})/).map((chunk, i) => {
+    const key = /^\{(\w+)\}$/.exec(chunk)?.[1];
+    return key && key in parts ? <Fragment key={i}>{parts[key]}</Fragment> : chunk;
+  });
+}
+
+const HEAD_LINK = "underline decoration-fg/20 decoration-1 underline-offset-[0.14em] transition-colors duration-fast hover:decoration-fg/70";
+
+/**
+ * The hero headline, written by the latest scan: the domain's score, then its single most telling fact —
+ * the riskiest real escalation path (or, failing that, the critical count). Every name and number links
+ * to where it comes from. Falls back to the product slogan before the first scan.
+ */
+function LiveHeadline({ d }: { d: Dashboard }) {
+  const { t, tp, objectType } = useI18n();
+  const { findings } = useScanModel();
+  const path = pathFindings(findings)[0];
+  const hidden = path?.path_edges?.includes("primaryGroupID");
+  const target = path?.privilege_path?.[path.privilege_path.length - 1];
+
+  const score = (
+    <Link to="/dashboard" className={cn(HEAD_LINK, "italic")} style={{ color: BAND_COLOR[d.score_band] }}>
+      {d.ad_security_score}
+    </Link>
+  );
+  let second: ReactNode;
+  if (path && target) {
+    second = fillTemplate(t(hidden ? "live.hidden" : "live.path"), {
+      type: objectType(path.object_type),
+      name: (
+        <Link to={`/accounts/${path.object_id}`} className={cn(HEAD_LINK, "italic")}>
+          {path.object_name}
+        </Link>
+      ),
+      hops: tp("live.hops", path.privilege_path!.length - 1),
+      target: (
+        <Link to="/paths" className={cn(HEAD_LINK, "text-risk-critical")}>
+          {target}
+        </Link>
+      ),
+    });
+  } else if (findings) {
+    second = d.level_counts.Critical > 0 ? tp("live.critical", d.level_counts.Critical) : t("live.clean");
+  }
+
+  return (
+    <>
+      <span className="block">{fillTemplate(t("live.score"), { domain: d.scan.domain, score })}</span>
+      {second && (
+        <motion.span className="mt-2 block text-fg-2" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: DUR.slow, ease: EASE }}>
+          {second}
+        </motion.span>
+      )}
+    </>
+  );
+}
 
 /** The object picked on the radar — what it is, why it is risky, where to go next. */
 function SelectedObject({ e, onClear }: { e: Entity; onClear: () => void }) {
@@ -102,7 +161,10 @@ function RadarCard({ d }: { d: Dashboard | undefined }) {
 
   const total = LEVELS.reduce((s, l) => s + (d?.level_counts[l] ?? 0), 0);
   return (
-    <div className="panel relative mx-auto w-full max-w-[520px] p-6 sm:p-7">
+    <div
+      className="instrument panel relative mx-auto w-full max-w-[520px] overflow-hidden p-6 sm:p-7"
+      style={{ backgroundImage: "radial-gradient(120% 70% at 50% 38%, rgb(255 250 240 / 0.055), transparent 62%)" }}
+    >
       {d && (
         <div className="mb-4 flex items-center justify-between gap-3">
           <span className="kicker truncate">{d.scan.domain}</span>
@@ -364,10 +426,16 @@ export default function PlatformHome() {
       <section className="relative grid grid-cols-[minmax(0,1fr)] items-center gap-10 overflow-x-clip lg:grid-cols-[minmax(0,1fr)_minmax(0,520px)] lg:gap-12">
         <motion.div variants={itemMotion} className="max-w-xl">
           <div className="kicker">{t("home.eyebrow")}</div>
-          <h1 className="display mt-5 text-40 leading-[1.08] tracking-[-0.02em]">
-            {t("home.heroA")}
-            {t("home.heroB")}
-            {t("home.heroC")}
+          <h1 className="display mt-5 text-40 leading-[1.12] tracking-[-0.02em]" aria-live="polite">
+            {d ? (
+              <LiveHeadline d={d} />
+            ) : (
+              <>
+                {t("home.heroA")}
+                {t("home.heroB")}
+                {t("home.heroC")}
+              </>
+            )}
           </h1>
           <p className="mt-5 max-w-[46ch] text-16 text-fg-2">{t("home.heroText")}</p>
           <div className="mt-7 flex flex-wrap items-center gap-3">

@@ -138,6 +138,8 @@ const en = {
     complete: "Scan complete",
     completeDesc: "AD Security Score {score}/100 · {findings} findings on {objects} objects",
     failed: "Scan failed",
+    openDashboard: "Open dashboard",
+    skip: "Esc — skip",
   },
   states: {
     noScanTitle: "No scan yet",
@@ -335,6 +337,14 @@ const en = {
     account: "account",
     nestedGroup: "nested group",
     criticalGroup: "critical group",
+  },
+  live: {
+    score: "{domain}: {score} out of 100.",
+    path: "{type} {name} is {hops} away from {target}.",
+    hidden: "{type} {name} is a hidden member of {target}.",
+    hops: plural({ one: "{n} step", other: "{n} steps" }),
+    critical: plural({ one: "{n} critical object needs attention.", other: "{n} critical objects need attention." }),
+    clean: "No critical objects or escalation paths found.",
   },
   overview: {
     kpiScore: "Domain security",

@@ -4,17 +4,23 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { api } from "./api";
 import { useI18n } from "./i18n";
-import type { Source } from "./types";
+import type { Dashboard, Source } from "./types";
 
 export const SCAN_STEPS = ["collecting", "analyzing", "scoring", "persisting", "done"] as const;
 export type ScanStep = (typeof SCAN_STEPS)[number];
 const MIN_STEP_MS = 480; // stages are real (polled from the job); we only pace their display for readability
+
+const REVEAL_MS = 4200; // how long the finished scan is shown before moving on (skippable)
 
 interface ScanCtx {
   source: Source;
   setSource: (s: Source) => void;
   running: boolean;
   step: ScanStep | null;
+  /** the finished scan, shown by the scan scene before it closes */
+  result: Dashboard | null;
+  /** end the reveal early (button / Esc) */
+  dismiss: () => void;
   runScan: (source?: Source) => Promise<void>;
 }
 
@@ -34,7 +40,10 @@ export function ScanProvider({ children }: { children: ReactNode }) {
   const [source, setSourceState] = useState<Source>(readSource);
   const [running, setRunning] = useState(false);
   const [step, setStep] = useState<ScanStep | null>(null);
+  const [result, setResult] = useState<Dashboard | null>(null);
   const busy = useRef(false);
+  const release = useRef<(() => void) | null>(null);
+  const dismiss = useCallback(() => release.current?.(), []);
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { t } = useI18n();
@@ -74,7 +83,13 @@ export function ScanProvider({ children }: { children: ReactNode }) {
         }
         await sleep(450);
         await qc.invalidateQueries();
-        const dash = scanId ? await api.dashboard(scanId) : null;
+        const dash = scanId ? await api.dashboard(scanId, 50) : null;
+        if (dash) {
+          // reveal: the scene shows the new scan's blips and score, until the timer or the user moves on
+          setResult(dash);
+          await Promise.race([sleep(REVEAL_MS), new Promise<void>((r) => (release.current = r))]);
+          release.current = null;
+        }
         toast.success(t("scan.complete"), {
           description: dash
             ? t("scan.completeDesc", { score: dash.ad_security_score, findings: dash.counts.findings, objects: dash.counts.objects_at_risk })
@@ -85,14 +100,16 @@ export function ScanProvider({ children }: { children: ReactNode }) {
         toast.error(t("scan.failed"), { description: e instanceof Error ? e.message : String(e) });
       } finally {
         busy.current = false;
+        release.current = null;
         setRunning(false);
         setStep(null);
+        setResult(null);
       }
     },
     [navigate, qc, source, t],
   );
 
-  return <Ctx.Provider value={{ source, setSource, running, step, runScan }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ source, setSource, running, step, result, dismiss, runScan }}>{children}</Ctx.Provider>;
 }
 
 export function useScan() {

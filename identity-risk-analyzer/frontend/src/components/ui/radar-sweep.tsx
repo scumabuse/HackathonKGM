@@ -124,7 +124,7 @@ export function RadarSweep({
             <span key={e.object_id} className="absolute -ml-1 -mt-1" style={style}>
               <span
                 className={cn(dot, "opacity-90 animate-blip motion-reduce:animate-none")}
-                style={{ animationDelay: `${delay.toFixed(2)}s`, boxShadow: "0 0 0 2px rgb(var(--raised))" }}
+                style={{ animationDelay: `${delay.toFixed(2)}s`, boxShadow: `0 0 0 2px rgb(var(--raised)), 0 0 9px 1px ${tint(LEVEL_META[e.level].color, 55)}` }}
               />
             </span>
           );
@@ -161,7 +161,7 @@ export function RadarSweep({
                   "relative group-focus-visible:ring-2 group-focus-visible:ring-accent",
                   isSel ? "scale-150" : "opacity-90 animate-blip motion-reduce:animate-none",
                 )}
-                style={{ animationDelay: isSel ? undefined : `${delay.toFixed(2)}s`, boxShadow: "0 0 0 2px rgb(var(--raised))" }}
+                style={{ animationDelay: isSel ? undefined : `${delay.toFixed(2)}s`, boxShadow: `0 0 0 2px rgb(var(--raised)), 0 0 9px 1px ${tint(color, 55)}` }}
               />
             </span>
           </button>

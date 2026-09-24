@@ -1,45 +1,27 @@
-import { motion } from "motion/react";
 import { useI18n } from "@/lib/i18n";
 import { LEVEL_META } from "@/lib/risk";
 import type { RiskLevel } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-/** Risk level pill — color + icon + label (never color alone). Critical gets a live pulse. */
-export function RiskBadge({ level, className, compact }: { level: RiskLevel; className?: string; compact?: boolean }) {
+/** Risk level chip: tinted background + a shape-coded icon in the risk color + the label in text ink.
+ *  Identity never relies on color alone (octagon / triangle / dot / shield + the word). */
+export function RiskChip({ level, className }: { level: RiskLevel; className?: string }) {
   const { level: levelName } = useI18n();
   const m = LEVEL_META[level];
   const Icon = m.icon;
   return (
-    <motion.span
-      initial={{ opacity: 0, scale: 0.85 }}
-      animate={{ opacity: 1, scale: 1 }}
-      className={cn(
-        "inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset",
-        m.text,
-        m.soft,
-        m.ring,
-        className,
-      )}
-    >
-      {level === "Critical" ? (
-        <span className="relative flex size-1.5">
-          <span className="absolute inline-flex size-full animate-ping rounded-full opacity-75" style={{ background: m.color }} />
-          <span className="relative inline-flex size-1.5 rounded-full" style={{ background: m.color }} />
-        </span>
-      ) : (
-        <Icon className="size-3" aria-hidden />
-      )}
-      {!compact && levelName(level)}
-      {compact && <span className="sr-only">{levelName(level)}</span>}
-    </motion.span>
+    <span className={cn("inline-flex h-6 items-center gap-1.5 whitespace-nowrap rounded-control px-2 text-12 font-medium text-fg", m.soft, className)}>
+      <Icon className="size-3.5 shrink-0" style={{ color: m.color }} aria-hidden />
+      {levelName(level)}
+    </span>
   );
 }
 
-/** Object Risk Score number (higher = worse), with its level color as a side rail. */
-export function ScoreChip({ score, level, className }: { score: number; level: RiskLevel; className?: string }) {
+/** Object Risk Score (higher = worse): mono number with a thin level-colored rail. */
+export function ScoreCell({ score, level, className }: { score: number; level: RiskLevel; className?: string }) {
   return (
-    <span className={cn("inline-flex items-center gap-1.5 font-mono text-sm font-semibold num text-foreground", className)}>
-      <span className="h-3.5 w-1 rounded-full" style={{ background: LEVEL_META[level].color }} aria-hidden />
+    <span className={cn("inline-flex items-center gap-2 font-mono text-14 text-fg", className)}>
+      <span className={cn("h-3.5 w-0.5 rounded-full", LEVEL_META[level].dot)} aria-hidden />
       {score}
     </span>
   );

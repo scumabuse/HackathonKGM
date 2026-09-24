@@ -1,6 +1,8 @@
+import { SearchX } from "lucide-react";
 import { createBrowserRouter, Link } from "react-router-dom";
 import App from "./App";
 import { PageShell } from "./components/layout/PageShell";
+import { StateBlock } from "./components/States";
 import { useI18n } from "./lib/i18n";
 import AccountDetail from "./pages/AccountDetail";
 import Dashboard from "./pages/Dashboard";
@@ -11,13 +13,11 @@ import Settings from "./pages/Settings";
 function NotFound() {
   const { t } = useI18n();
   return (
-    <div className="py-24 text-center">
-      <div className="font-display text-5xl font-semibold text-primary">404</div>
-      <p className="mt-3 text-muted-foreground">{t("states.pageNotFound")}</p>
-      <Link to="/" className="mt-4 inline-block text-sm text-primary hover:underline">
+    <StateBlock icon={SearchX} title="404" text={t("states.pageNotFound")}>
+      <Link to="/" className="text-13 text-fg-2 transition-colors duration-fast hover:text-fg">
         {t("states.backHome")}
       </Link>
-    </div>
+    </StateBlock>
   );
 }
 

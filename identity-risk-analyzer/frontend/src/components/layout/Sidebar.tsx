@@ -1,8 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
 import { Archive, Globe2, LayoutDashboard, ListFilter, Radar, ScrollText, ShieldCheck, SlidersHorizontal, Wrench } from "lucide-react";
 import { NavLink } from "react-router-dom";
-import { Tip } from "@/components/ui/tooltip";
-import { api } from "@/lib/api";
+import { MonoDigits } from "@/components/MonoDigits";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
@@ -25,44 +23,45 @@ export function Brand() {
   const { t } = useI18n();
   return (
     <div className="flex items-center gap-2.5">
-      <div className="relative grid size-9 place-items-center overflow-hidden rounded-xl border border-primary/30 bg-primary/10">
-        <Radar className="size-5 text-primary" />
-        <span className="absolute inset-0 animate-radar-sweep bg-[conic-gradient(from_0deg,hsl(var(--primary)/0.35),transparent_70deg)]" />
-      </div>
-      <div className="leading-tight">
-        <div className="font-display text-[13px] font-semibold tracking-wide">{t("nav.brand")}</div>
-        <div className="text-[10.5px] uppercase tracking-[0.16em] text-muted-foreground">{t("nav.brandSub")}</div>
+      <Radar className="size-5 text-fg" aria-hidden />
+      <div>
+        <div className="text-14 font-semibold text-fg">{t("nav.brand")}</div>
+        <div className="text-12 text-fg-3">{t("nav.brandSub")}</div>
       </div>
     </div>
   );
 }
 
+/** Active item = accent text + a thin accent bar. Inactive = muted, no boxes. */
 export function NavList({ onNavigate }: { onNavigate?: () => void }) {
   const { t } = useI18n();
   return (
-    <nav className="space-y-1" aria-label={t("nav.main")}>
-      {NAV.map(({ to, label, icon: Icon, end }) => (
-        <NavLink
-          key={to}
-          to={to}
-          end={end}
-          onClick={onNavigate}
-          className={({ isActive }) =>
-            cn(
-              "group relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition",
-              isActive ? "bg-fg/[0.07] text-foreground" : "text-muted-foreground hover:bg-fg/[0.04] hover:text-foreground",
-            )
-          }
-        >
-          {({ isActive }) => (
-            <>
-              {isActive && <span className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-primary shadow-[0_0_10px_hsl(var(--primary))]" />}
-              <Icon className={cn("size-4", isActive && "text-primary")} />
-              {t(label)}
-            </>
-          )}
-        </NavLink>
-      ))}
+    <nav aria-label={t("nav.main")}>
+      <ul className="space-y-0.5">
+        {NAV.map(({ to, label, icon: Icon, end }) => (
+          <li key={to}>
+            <NavLink
+              to={to}
+              end={end}
+              onClick={onNavigate}
+              className={({ isActive }) =>
+                cn(
+                  "relative flex h-9 items-center gap-3 rounded-control px-3 text-14 transition-colors duration-fast",
+                  isActive ? "font-medium text-accent" : "text-fg-2 hover:bg-fg/[0.04] hover:text-fg",
+                )
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  {isActive && <span className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-accent" aria-hidden />}
+                  <Icon className="size-4" aria-hidden />
+                  {t(label)}
+                </>
+              )}
+            </NavLink>
+          </li>
+        ))}
+      </ul>
     </nav>
   );
 }
@@ -71,20 +70,14 @@ export function ModuleList() {
   const { t } = useI18n();
   return (
     <div>
-      <div className="mb-2 px-3 text-[10.5px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/70">{t("nav.modules")}</div>
+      <div className="eyebrow mb-2 px-3">{t("nav.modules")}</div>
       <ul className="space-y-0.5">
         {MODULES.map(({ label, icon: Icon, live }) => (
-          <li key={label} className={cn("flex items-center gap-3 rounded-lg px-3 py-1.5 text-[13px]", live ? "text-foreground" : "text-muted-foreground/50")}>
-            <Icon className="size-3.5" />
-            <span className="flex-1">{t(label)}</span>
-            {live ? (
-              <span className="relative flex size-2">
-                <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-60" />
-                <span className="relative inline-flex size-2 rounded-full bg-primary" />
-              </span>
-            ) : (
-              <span className="text-[10px]">{t("nav.soon")}</span>
-            )}
+          <li key={label} className={cn("flex h-8 items-center gap-2.5 px-3 text-13", live ? "text-fg-2" : "text-fg-3/70")}>
+            <Icon className="size-4" aria-hidden />
+            {/* module names are untranslated brand names ending in "Radar"; under the "Modules" heading the suffix is noise */}
+            <span className="flex-1 truncate">{t(label).replace(/ Radar$/, "")}</span>
+            <span className={cn("text-12", live ? "text-fg-3" : "text-fg-3/70")}>{t(live ? "home.live" : "nav.soon")}</span>
           </li>
         ))}
       </ul>
@@ -92,49 +85,16 @@ export function ModuleList() {
   );
 }
 
-export function PostureBadge() {
-  const { t } = useI18n();
-  const { data } = useQuery({ queryKey: ["health"], queryFn: api.health, staleTime: 60_000 });
-  return (
-    <Tip
-      side="right"
-      content={
-        <div className="space-y-1">
-          <div className="font-semibold">{t("posture.tipTitle")}</div>
-          <div>{t("posture.tipPriv")}</div>
-          <div>{t("posture.tipSecrets")}</div>
-          {data?.config.ldap_bind_user && (
-            <div className="font-mono">
-              {t("posture.bind")}: {data.config.ldap_bind_user}
-            </div>
-          )}
-        </div>
-      }
-    >
-      <div className="flex cursor-help items-center gap-2.5 rounded-xl border border-risk-low/30 bg-risk-low/[0.08] px-3 py-2.5">
-        <ShieldCheck className="size-4 text-risk-fg-low" />
-        <div className="leading-tight">
-          <div className="text-[12px] font-medium text-foreground">{t("posture.badge")}</div>
-          <div className="text-[10.5px] text-muted-foreground">{t("posture.badgeSub")}</div>
-        </div>
-      </div>
-    </Tip>
-  );
-}
-
 export function Sidebar() {
   const { t } = useI18n();
   return (
-    <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col gap-6 border-r border-fg/[0.06] bg-background/60 px-3 py-5 backdrop-blur-xl lg:flex">
-      <div className="px-2">
+    <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col gap-8 border-r border-line bg-base px-3 py-5 lg:flex">
+      <div className="px-3">
         <Brand />
       </div>
       <NavList />
       <ModuleList />
-      <div className="mt-auto space-y-2">
-        <PostureBadge />
-        <div className="px-3 text-[10.5px] text-muted-foreground/60">{t("common.version")}</div>
-      </div>
+      <MonoDigits text={t("common.version")} className="mt-auto px-3 text-12 text-fg-3" />
     </aside>
   );
 }

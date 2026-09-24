@@ -1,59 +1,64 @@
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, ChevronDown, Crown, Lock, Unlock } from "lucide-react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { ArrowLeft, ChevronDown } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Line, LineChart, ResponsiveContainer, Tooltip, YAxis } from "recharts";
-import { AnimatedCounter } from "@/components/AnimatedCounter";
-import { TooltipBox } from "@/components/charts/ChartCard";
+import { TrendSparkline } from "@/components/charts/TrendSparkline";
 import { CodeBlock } from "@/components/CodeBlock";
-import { EvidenceList, MitreTags } from "@/components/FindingDetailSheet";
+import { EvidenceList, MitreTags } from "@/components/Evidence";
 import { PrivilegePathGraph } from "@/components/PrivilegePathGraph";
-import { RiskBadge } from "@/components/RiskBadge";
+import { RiskChip } from "@/components/RiskBadge";
 import { ErrorState, isNotFound } from "@/components/States";
-import { Card, CardHeader } from "@/components/ui/card";
+import { Tag } from "@/components/ui/badge";
+import { Panel, PanelHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { WeightBreakdown } from "@/components/WeightBreakdown";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { CATEGORY_ICON, LEVEL_META, OBJECT_ICON, tint } from "@/lib/risk";
+import { DUR, EASE, itemMotion, listMotion } from "@/lib/motion";
+import { OBJECT_ICON } from "@/lib/risk";
 import type { Finding } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const ACCENT = "hsl(var(--primary))";
-
-function FindingAccordion({ f, defaultOpen }: { f: Finding; defaultOpen: boolean }) {
+function FindingItem({ f, defaultOpen }: { f: Finding; defaultOpen: boolean }) {
   const { t, category, fmtDateTime } = useI18n();
   const [open, setOpen] = useState(defaultOpen);
-  const CatIcon = CATEGORY_ICON[f.category];
   return (
-    <div className={cn("rounded-2xl border transition", open ? "border-fg/[0.1] bg-fg/[0.025]" : "border-fg/[0.06] hover:border-fg/[0.12]")}>
-      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex w-full items-center gap-3 px-4 py-3 text-left">
-        <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-fg/[0.05]">
-          <CatIcon className="size-4 text-primary" />
-        </span>
+    <div className="border-b border-line last:border-0">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex w-full items-center gap-4 px-6 py-4 text-left transition-colors duration-fast hover:bg-fg/[0.02]"
+      >
         <div className="min-w-0 flex-1">
-          <div className="truncate font-medium">{f.title}</div>
-          <div className="font-mono text-[11px] text-muted-foreground">
-            {f.rule_id} · {t("account.weight", { w: f.rule_weight.toFixed(2) })} · {category(f.category)}
+          <div className="text-14 font-medium text-fg">{f.title}</div>
+          <div className="mt-0.5 truncate text-12 text-fg-3">
+            <span className="font-mono">{f.rule_id}</span> · {t("account.weight", { w: f.rule_weight.toFixed(2) })} · {category(f.category)}
           </div>
         </div>
-        <ChevronDown className={cn("size-4 shrink-0 text-muted-foreground transition", open && "rotate-180")} />
+        <ChevronDown className={cn("size-4 shrink-0 text-fg-3 transition-transform duration-fast", open && "rotate-180")} aria-hidden />
       </button>
       <AnimatePresence initial={false}>
         {open && (
-          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-            <div className="space-y-4 px-4 pb-4">
-              <p className="text-sm leading-relaxed text-foreground/85">{f.description}</p>
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: DUR.base, ease: EASE }}
+            className="overflow-hidden"
+          >
+            <div className="space-y-5 px-6 pb-6">
+              <p className="max-w-[68ch] text-14 text-fg-2">{f.description}</p>
               <EvidenceList evidence={f.evidence} />
-              <div className="rounded-xl border border-primary/20 bg-primary/[0.05] p-3">
-                <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">{t("detail.recommendation")}</div>
-                <p className="text-sm leading-relaxed">{f.recommendation}</p>
+              <div>
+                <h4 className="eyebrow mb-2">{t("detail.recommendation")}</h4>
+                <p className="mb-3 max-w-[68ch] text-14 text-fg">{f.recommendation}</p>
+                {f.remediation_command && <CodeBlock code={f.remediation_command} />}
               </div>
-              {f.remediation_command && <CodeBlock code={f.remediation_command} />}
-              <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <MitreTags ids={f.mitre} />
-                <span className="text-[11px] text-muted-foreground">{t("account.firstSeen", { date: fmtDateTime(f.first_seen) })}</span>
+                <span className="text-12 text-fg-3">{t("account.firstSeen", { date: fmtDateTime(f.first_seen) })}</span>
               </div>
             </div>
           </motion.div>
@@ -64,9 +69,8 @@ function FindingAccordion({ f, defaultOpen }: { f: Finding; defaultOpen: boolean
 }
 
 export default function AccountDetail() {
-  const { t, lang, objectType, fmtDate, fmtDateTime } = useI18n();
+  const { t, lang, objectType } = useI18n();
   const { objectId = "" } = useParams();
-  const reduce = useReducedMotion();
   const { data, error, isLoading } = useQuery({
     queryKey: ["account", objectId, lang],
     queryFn: () => api.account(objectId),
@@ -75,165 +79,110 @@ export default function AccountDetail() {
 
   if (isLoading)
     return (
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-        <Skeleton className="h-40 lg:col-span-12" />
-        <Skeleton className="h-80 lg:col-span-7" />
-        <Skeleton className="h-80 lg:col-span-5" />
+      <div className="mx-auto max-w-[880px] space-y-6" aria-busy>
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-24" />
+        <Skeleton className="h-80 rounded-card" />
+        <Skeleton className="h-40 rounded-card" />
       </div>
     );
   if (error || !data)
     return (
       <ErrorState error={error ?? "not found"}>
-        <Link to="/findings" className="text-sm text-primary hover:underline">
-          {t("common.backToFindings")}
+        <Link to="/findings" className="inline-flex items-center gap-1 text-13 text-fg-2 hover:text-fg">
+          <ArrowLeft className="size-3.5" /> {t("common.backToFindings")}
         </Link>
       </ErrorState>
     );
 
   const e = data.entity;
-  const meta = LEVEL_META[e.level];
   const TypeIcon = OBJECT_ICON[e.object_type];
-  const history = data.history.map((h) => ({ ...h, label: fmtDate(h.at) }));
+  const pathText = e.privilege_path?.join(" → ");
+  // the escalation path already has its own graph — don't state it twice in the facts
+  const facts = Object.entries(e.attributes).filter(([, v]) => v !== pathText);
 
   return (
-    <div className="space-y-4">
-      <Link to="/findings" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition hover:text-foreground">
-        <ArrowLeft className="size-4" /> {t("account.back")}
-      </Link>
+    <motion.div variants={listMotion} initial="hidden" animate="show" className="mx-auto max-w-[880px] space-y-6">
+      <motion.div variants={itemMotion}>
+        <Link to="/findings" className="inline-flex items-center gap-1.5 text-13 text-fg-2 transition-colors duration-fast hover:text-fg">
+          <ArrowLeft className="size-3.5" /> {t("account.back")}
+        </Link>
+      </motion.div>
 
-      {/* ---- header ---- */}
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-        <Card className="relative overflow-hidden p-6">
-          <div className="absolute -right-24 -top-24 size-72 rounded-full blur-3xl" style={{ background: tint(meta.color, 15) }} />
-          <div className="relative flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-            <div className="flex min-w-0 items-start gap-4">
-              <span className="grid size-14 shrink-0 place-items-center rounded-2xl border border-fg/10 bg-fg/[0.04]">
-                <TypeIcon className="size-7 text-foreground/80" />
-              </span>
-              <div className="min-w-0 space-y-1.5">
-                <h1 className="truncate font-mono text-2xl font-semibold">{e.object_name}</h1>
-                {e.display_name && e.display_name !== e.object_name && <div className="text-sm text-muted-foreground">{e.display_name}</div>}
-                <div className="break-all font-mono text-[11.5px] text-muted-foreground/80">{e.object_dn}</div>
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  <span className="rounded-md border border-fg/10 px-2 py-0.5 text-[11px] text-muted-foreground">{objectType(e.object_type)}</span>
-                  {e.tier0 && (
-                    <span className="inline-flex items-center gap-1 rounded-md border border-risk-critical/40 bg-risk-critical/10 px-2 py-0.5 text-[11px] text-risk-fg-critical">
-                      <Crown className="size-3" /> {t("account.tier0", { k: e.k })}
-                    </span>
-                  )}
-                  {!e.tier0 && e.privileged && <span className="rounded-md border border-risk-high/40 bg-risk-high/10 px-2 py-0.5 text-[11px] text-risk-fg-high">{t("account.privileged")}</span>}
-                  {e.enabled !== null && (
-                    <span className="inline-flex items-center gap-1 rounded-md border border-fg/10 px-2 py-0.5 text-[11px] text-muted-foreground">
-                      {e.enabled ? <Unlock className="size-3" /> : <Lock className="size-3" />} {t(e.enabled ? "account.enabled" : "account.disabled")}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className="flex shrink-0 items-center gap-5 md:flex-col md:items-end md:gap-1">
-              <div className="flex items-baseline gap-1">
-                <AnimatedCounter value={e.score} className="text-6xl font-semibold leading-none tracking-tight" />
-                <span className="text-sm text-muted-foreground">/100</span>
-              </div>
-              <div className="flex flex-col items-start gap-1 md:items-end">
-                <RiskBadge level={e.level} />
-                <span className="text-[11px] text-muted-foreground">{t("account.scoreCaption")}</span>
-              </div>
-            </div>
+      {/* ---- header: who this is ---- */}
+      <motion.header variants={itemMotion} className="space-y-3 pb-2">
+        <div className="flex flex-wrap items-center gap-2 text-13 text-fg-3">
+          <TypeIcon className="size-4" aria-hidden />
+          <span>{objectType(e.object_type)}</span>
+          {e.tier0 && <Tag className="font-mono">{t("account.tier0", { k: e.k })}</Tag>}
+        </div>
+        <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+          <div className="min-w-0">
+            <h1 className="break-all font-mono text-28 text-fg">{e.object_name}</h1>
+            {e.display_name && e.display_name !== e.object_name && <div className="mt-0.5 text-14 text-fg-2">{e.display_name}</div>}
           </div>
-        </Card>
+          <RiskChip level={e.level} className="mt-1.5" />
+        </div>
+        <div className="break-all font-mono text-12 text-fg-3">{e.object_dn}</div>
+      </motion.header>
+
+      {/* ---- the star: why this score ---- */}
+      <motion.div variants={itemMotion}>
+        <Panel>
+          <PanelHeader
+            title={<span className="text-20">{t("account.why", { score: e.score })}</span>}
+            subtitle={`${t("account.scoreCaption")} · ${t("account.whySub")}`}
+          />
+          <WeightBreakdown items={e.weight_breakdown} k={e.k} score={e.score} level={e.level} />
+        </Panel>
       </motion.div>
 
       {e.privilege_path && (
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.14 }}>
-          <Card>
-            <CardHeader
-              title={t("account.pathTitle")}
-              subtitle={t(e.path_edges?.includes("primaryGroupID") ? "account.pathHidden" : "account.pathSub")}
-            />
+        <motion.div variants={itemMotion}>
+          <Panel>
+            <PanelHeader title={t("account.pathTitle")} subtitle={t(e.path_edges?.includes("primaryGroupID") ? "account.pathHidden" : "account.pathSub")} />
             <div className="overflow-x-auto pb-1">
               <PrivilegePathGraph path={e.privilege_path} edges={e.path_edges} />
             </div>
-          </Card>
+          </Panel>
         </motion.div>
       )}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-        <div className="min-w-0 space-y-4 lg:col-span-7">
-          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}>
-            <Card>
-              <CardHeader title={t("account.why", { score: e.score })} subtitle={t("account.whySub")} />
-              <WeightBreakdown items={e.weight_breakdown} k={e.k} score={e.score} accent={meta.color} />
-            </Card>
-          </motion.div>
 
-          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="space-y-2">
-            <h2 className="px-1 text-sm font-semibold">
-              {t("common.findings")} <span className="text-muted-foreground">({data.findings.length})</span>
-            </h2>
-            {data.findings.map((f, i) => (
-              <FindingAccordion key={f.id} f={f} defaultOpen={i === 0} />
+      <motion.div variants={itemMotion}>
+        <Panel className="p-0">
+          <div className="px-6 pt-6">
+            <PanelHeader title={`${t("common.findings")} · ${data.findings.length}`} className="mb-2" />
+          </div>
+          {data.findings.map((f, i) => (
+            <FindingItem key={f.id} f={f} defaultOpen={i === 0} />
+          ))}
+        </Panel>
+      </motion.div>
+
+      <motion.div variants={itemMotion}>
+        <Panel>
+          <PanelHeader title={t("account.facts")} subtitle={t("account.factsSub")} />
+          <dl className="grid grid-cols-1 gap-x-8 sm:grid-cols-2">
+            {facts.map(([k, v]) => (
+              <div key={k} className="grid grid-cols-[9rem_1fr] gap-3 border-b border-line py-2.5">
+                <dt className="text-13 text-fg-3">{k}</dt>
+                <dd className="min-w-0 break-words font-mono text-13 text-fg">{v}</dd>
+              </div>
             ))}
-          </motion.div>
-        </div>
+          </dl>
+        </Panel>
+      </motion.div>
 
-        <div className="min-w-0 space-y-4 lg:col-span-5">
-          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-            <Card>
-              <CardHeader title={t("account.facts")} subtitle={t("account.factsSub")} />
-              <dl className="divide-y divide-fg/[0.05] text-[13px]">
-                {Object.entries(e.attributes).map(([k, v]) => (
-                  <div key={k} className="grid grid-cols-[130px_1fr] gap-3 py-2">
-                    <dt className="text-muted-foreground">{k}</dt>
-                    <dd className="min-w-0 break-words font-mono text-[12px] text-foreground/90">{v}</dd>
-                  </div>
-                ))}
-              </dl>
-            </Card>
-          </motion.div>
-
-          {data.mitre.length > 0 && (
-            <Card>
-              <CardHeader title={t("account.mitreTitle")} />
-              <MitreTags ids={data.mitre} />
-            </Card>
+      <motion.div variants={itemMotion}>
+        <Panel>
+          <PanelHeader title={t("account.riskOverTime")} subtitle={t("account.riskOverTimeSub")} />
+          {data.history.length < 2 ? (
+            <p className="text-13 text-fg-3">{t("account.onlyOneScan")}</p>
+          ) : (
+            <TrendSparkline points={data.history} label={t("common.objectRiskScore")} valueLabel={t("detail.objectRisk")} height={72} />
           )}
-
-          <Card>
-            <CardHeader title={t("account.riskOverTime")} subtitle={t("account.riskOverTimeSub")} />
-            {history.length < 2 ? (
-              <p className="text-sm text-muted-foreground">{t("account.onlyOneScan")}</p>
-            ) : (
-              <>
-                <div className="h-[110px]">
-                  <ResponsiveContainer>
-                    <LineChart data={history} margin={{ top: 10, right: 12, bottom: 4, left: 12 }}>
-                      <YAxis domain={[0, 100]} hide />
-                      <Tooltip
-                        cursor={{ stroke: "hsl(var(--muted-foreground))", strokeWidth: 1 }}
-                        content={({ active, payload }) =>
-                          active && payload?.length ? (
-                            <TooltipBox
-                              title={fmtDateTime((payload[0].payload as { at: string }).at)}
-                              rows={[{ key: ACCENT, label: t("detail.objectRisk"), value: payload[0].value as number }]}
-                            />
-                          ) : null
-                        }
-                      />
-                      <Line type="monotone" dataKey="score" stroke={ACCENT} strokeWidth={2} dot={false} activeDot={{ r: 4, stroke: "hsl(var(--card))", strokeWidth: 2 }} isAnimationActive={!reduce} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="mt-1 flex justify-between text-[11px] text-muted-foreground">
-                  <span>{history[0].label}</span>
-                  <span>
-                    {t("account.now")} <b className="text-foreground">{history[history.length - 1].score}</b>
-                  </span>
-                </div>
-              </>
-            )}
-          </Card>
-        </div>
-      </div>
-    </div>
+        </Panel>
+      </motion.div>
+    </motion.div>
   );
 }

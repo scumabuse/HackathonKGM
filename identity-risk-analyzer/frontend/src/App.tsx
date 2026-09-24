@@ -13,11 +13,16 @@ export default function App() {
       <TooltipProvider>
         <ScanProvider>
           <Outlet />
+          {/* neutral toasts: status is carried by the icon + text, not by colored backgrounds */}
           <Toaster
             theme={theme}
             position="bottom-right"
-            richColors
-            toastOptions={{ className: "!rounded-xl !border-fg/10 !bg-popover" }}
+            toastOptions={{
+              classNames: {
+                toast: "!rounded-card !border-0 !bg-overlay !text-fg !shadow-overlay !font-sans",
+                description: "!text-fg-2",
+              },
+            }}
           />
         </ScanProvider>
       </TooltipProvider>

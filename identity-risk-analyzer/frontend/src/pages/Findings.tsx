@@ -1,52 +1,68 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, Search, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronDown, Search, SearchX, X } from "lucide-react";
 import { motion } from "motion/react";
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { forwardRef, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useSearchParams } from "react-router-dom";
+import { ExportMenu } from "@/components/ExportMenu";
 import { FindingDetailSheet } from "@/components/FindingDetailSheet";
-import { ExportMenu } from "@/components/layout/Topbar";
-import { RiskBadge, ScoreChip } from "@/components/RiskBadge";
-import { ErrorState, NoScanYet, isNotFound } from "@/components/States";
-import { Card } from "@/components/ui/card";
+import { MonoDigits } from "@/components/MonoDigits";
+import { RiskChip, ScoreCell } from "@/components/RiskBadge";
+import { ErrorState, NoScanYet, StateBlock, isNotFound } from "@/components/States";
+import { Button, type ButtonProps } from "@/components/ui/button";
+import { Panel } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api";
-import { useI18n } from "@/lib/i18n";
+import { useI18n, type TKey } from "@/lib/i18n";
+import { DUR, EASE } from "@/lib/motion";
 import { CATEGORIES, CATEGORY_ICON, LEVELS, LEVEL_META, OBJECT_ICON, OBJECT_TYPES } from "@/lib/risk";
 import type { Finding, FindingFilters } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const SORTS = ["score", "weight", "level", "object", "category", "rule", "first_seen"] as const;
+type SortKey = (typeof SORTS)[number];
+
+// Table columns; `sort` makes the header a sort control (every API sort is reachable from a header).
+const COLUMNS: { key: string; label: TKey; sort: SortKey; className: string }[] = [
+  { key: "level", label: "findings.th.level", sort: "level", className: "w-[9.5rem] pl-5" },
+  { key: "risk", label: "findings.th.risk", sort: "score", className: "w-24" },
+  { key: "finding", label: "findings.th.finding", sort: "rule", className: "" },
+  { key: "object", label: "findings.th.object", sort: "object", className: "w-[13rem]" },
+  { key: "category", label: "findings.th.category", sort: "category", className: "hidden w-[9.5rem] xl:table-cell" },
+  { key: "weight", label: "findings.th.weight", sort: "weight", className: "hidden w-28 lg:table-cell" },
+  { key: "first", label: "findings.th.firstSeen", sort: "first_seen", className: "hidden w-28 pr-5 2xl:table-cell" },
+];
 
 function toggleIn(list: string[], v: string) {
   return list.includes(v) ? list.filter((x) => x !== v) : [...list, v];
 }
 
-function Chip({ active, onClick, children, color }: { active: boolean; onClick: () => void; children: React.ReactNode; color?: string }) {
-  return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onClick}
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition",
-        active ? "border-primary/50 bg-primary/10 text-foreground" : "border-fg/10 text-muted-foreground hover:border-fg/20 hover:text-foreground",
-      )}
-    >
-      {color && <span className="size-2 rounded-full" style={{ background: color }} />}
-      {children}
-    </button>
-  );
-}
+/** Dropdown trigger for a filter — forwards ref/props so Radix can attach to it. */
+const FilterButton = forwardRef<HTMLButtonElement, ButtonProps & { active?: boolean }>(({ children, active, className, ...p }, ref) => (
+  <Button ref={ref} variant="secondary" size="sm" className={cn("h-9 gap-1.5 text-13", active && "bg-fg/[0.06]", className)} {...p}>
+    {children}
+    <ChevronDown className="!size-3.5 text-fg-3" />
+  </Button>
+));
+FilterButton.displayName = "FilterButton";
 
 export default function Findings() {
-  const { t, tp, lang, level: levelName, category: categoryName, objectType: objectTypeName } = useI18n();
+  const { t, tp, lang, level: levelName, category: categoryName, objectType: objectTypeName, fmtDate, fmtDateTime } = useI18n();
   const [params, setParams] = useSearchParams();
   const levels = params.get("level")?.split(",").filter(Boolean) ?? [];
   const cats = params.get("category")?.split(",").filter(Boolean) ?? [];
   const objectType = params.get("object_type") ?? "";
   const ruleId = params.get("rule_id") ?? "";
-  const sort = params.get("sort") ?? "score";
+  const sort = (params.get("sort") as SortKey) ?? "score";
   const order = (params.get("order") as "asc" | "desc") ?? "desc";
   const [q, setQ] = useState(params.get("q") ?? "");
   const [selected, setSelected] = useState<Finding | null>(null);
@@ -88,7 +104,12 @@ export default function Findings() {
     retry: (n, e) => !isNotFound(e) && n < 2,
   });
 
-  const anyFilter = levels.length || cats.length || objectType || ruleId || params.get("q");
+  const anyFilter = !!(levels.length || cats.length || objectType || ruleId || params.get("q"));
+  const clearFilters = () => {
+    setQ("");
+    setParams(new URLSearchParams({ sort, order }), { replace: true });
+  };
+  const sortBy = (key: SortKey) => update(key === sort ? { order: order === "desc" ? "asc" : "desc" } : { sort: key, order: "desc" });
 
   const onRowKey = (e: KeyboardEvent<HTMLTableRowElement>, i: number, f: Finding) => {
     if (e.key === "Enter" || e.key === " ") {
@@ -108,114 +129,175 @@ export default function Findings() {
 
   return (
     <div className="space-y-4">
-      {/* ---- one filter row above everything it scopes ---- */}
-      <Card className="space-y-3 p-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-          <div className="relative flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("findings.search")} className="pl-9" aria-label={t("findings.searchLabel")} />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-20 font-semibold text-fg" aria-live="polite">
+          {data ? <MonoDigits text={tp("findings.count", data.total)} /> : "…"}
+        </h1>
+        <div className="flex items-center gap-2">
+          {/* headers sort on wide screens; this menu keeps every sort reachable where columns are hidden */}
+          <div className="2xl:hidden">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <FilterButton>
+                  {order === "desc" ? <ArrowDown className="!size-3.5 text-fg-3" /> : <ArrowUp className="!size-3.5 text-fg-3" />}
+                  {t("findings.sortPrefix", { name: t(`findings.sort.${sort}`) })}
+                </FilterButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuRadioGroup value={sort} onValueChange={(v) => update({ sort: v })}>
+                  {SORTS.map((k) => (
+                    <DropdownMenuRadioItem key={k} value={k}>
+                      {t(`findings.sort.${k}`)}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuRadioGroup value={order} onValueChange={(v) => update({ order: v })}>
+                  <DropdownMenuRadioItem value="desc">{t("findings.orderDesc")}</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="asc">{t("findings.orderAsc")}</DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <select
-              value={objectType}
-              onChange={(e) => update({ object_type: e.target.value || null })}
-              className="h-10 rounded-xl border border-input bg-fg/[0.03] px-3 text-sm text-foreground"
-              aria-label={t("findings.objectType")}
-            >
-              <option value="">{t("findings.allTypes")}</option>
-              {OBJECT_TYPES.map((o) => (
-                <option key={o} value={o}>
-                  {objectTypeName(o)}
-                </option>
-              ))}
-            </select>
-            <select
-              value={sort}
-              onChange={(e) => update({ sort: e.target.value })}
-              className="h-10 rounded-xl border border-input bg-fg/[0.03] px-3 text-sm text-foreground"
-              aria-label={t("findings.sortBy")}
-            >
-              {SORTS.map((s) => (
-                <option key={s} value={s}>
-                  {t("findings.sortPrefix", { name: t(`findings.sort.${s}`) })}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              onClick={() => update({ order: order === "desc" ? "asc" : "desc" })}
-              className="grid size-10 place-items-center rounded-xl border border-fg/10 text-muted-foreground transition hover:text-foreground"
-              aria-label={t(order === "desc" ? "findings.orderDesc" : "findings.orderAsc")}
-            >
-              {order === "desc" ? <ArrowDown className="size-4" /> : <ArrowUp className="size-4" />}
-            </button>
-            <ExportMenu scanId={data?.scan_id} filters={anyFilter ? filters : undefined} label={t(anyFilter ? "common.exportFilter" : "common.export")} />
-          </div>
+          <ExportMenu scanId={data?.scan_id} filters={anyFilter ? filters : undefined} />
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {LEVELS.map((l) => (
-            <Chip key={l} active={levels.includes(l)} onClick={() => update({ level: toggleIn(levels, l).join(",") || null })} color={LEVEL_META[l].color}>
-              {levelName(l)}
-            </Chip>
-          ))}
-          <span className="mx-1 hidden h-5 w-px bg-fg/10 sm:block" />
-          {CATEGORIES.map((c) => {
-            const Icon = CATEGORY_ICON[c];
+      </div>
+
+      {/* ---- one filter row above everything it scopes ---- */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-[16rem] flex-1 sm:max-w-sm">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-fg-3" aria-hidden />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("findings.search")} className="pl-9" aria-label={t("findings.searchLabel")} />
+        </div>
+
+        <div className="flex h-9 items-center rounded-control bg-fg/[0.05] p-0.5" role="group" aria-label={t("findings.th.level")}>
+          {LEVELS.map((l) => {
+            const on = levels.includes(l);
+            const Icon = LEVEL_META[l].icon;
             return (
-              <Chip key={c} active={cats.includes(c)} onClick={() => update({ category: toggleIn(cats, c).join(",") || null })}>
-                <Icon className="size-3.5" /> {categoryName(c)}
-              </Chip>
+              <button
+                key={l}
+                type="button"
+                aria-pressed={on}
+                title={levelName(l)}
+                onClick={() => update({ level: toggleIn(levels, l).join(",") || null })}
+                className={cn(
+                  "inline-flex h-8 items-center gap-1.5 rounded-inner px-2.5 text-13 transition-colors duration-fast",
+                  on ? "bg-raised text-fg shadow-panel" : "text-fg-3 hover:text-fg",
+                )}
+              >
+                <Icon className="size-3.5" style={{ color: LEVEL_META[l].color }} aria-hidden />
+                {/* phones: shape-coded icons only (the label stays for screen readers and in the tooltip) */}
+                <span className="sr-only sm:not-sr-only">{levelName(l)}</span>
+              </button>
             );
           })}
-          {ruleId && (
-            <span className="inline-flex items-center gap-1 rounded-lg border border-primary/40 bg-primary/10 px-2 py-1 font-mono text-[11px] text-primary">
-              {t("findings.rule", { id: ruleId })}
-              <button type="button" onClick={() => update({ rule_id: null })} aria-label={t("findings.clearRule")}>
-                <X className="size-3" />
-              </button>
-            </span>
-          )}
-          {anyFilter ? (
+        </div>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <FilterButton active={cats.length > 0}>
+              {t("findings.categories")}
+              {cats.length > 0 && <span className="font-mono text-12 text-fg-2">{cats.length}</span>}
+            </FilterButton>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            {CATEGORIES.map((c) => {
+              const Icon = CATEGORY_ICON[c];
+              return (
+                <DropdownMenuCheckboxItem key={c} checked={cats.includes(c)} onCheckedChange={() => update({ category: toggleIn(cats, c).join(",") || null })}>
+                  <Icon /> {categoryName(c)}
+                </DropdownMenuCheckboxItem>
+              );
+            })}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <FilterButton active={!!objectType}>{objectType ? objectTypeName(objectType as (typeof OBJECT_TYPES)[number]) : t("findings.allTypes")}</FilterButton>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuRadioGroup value={objectType} onValueChange={(v) => update({ object_type: v || null })}>
+              <DropdownMenuRadioItem value="">{t("findings.allTypes")}</DropdownMenuRadioItem>
+              {OBJECT_TYPES.map((o) => {
+                const Icon = OBJECT_ICON[o];
+                return (
+                  <DropdownMenuRadioItem key={o} value={o}>
+                    <Icon /> {objectTypeName(o)}
+                  </DropdownMenuRadioItem>
+                );
+              })}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {ruleId && (
+          <span className="inline-flex h-9 items-center gap-1.5 rounded-control bg-fg/[0.06] pl-3 pr-1.5 font-mono text-12 text-fg">
+            {ruleId}
             <button
               type="button"
-              onClick={() => {
-                setQ("");
-                setParams(new URLSearchParams({ sort, order }), { replace: true });
-              }}
-              className="ml-auto text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => update({ rule_id: null })}
+              aria-label={t("findings.clearRule")}
+              className="grid size-6 place-items-center rounded-inner text-fg-3 hover:bg-fg/[0.08] hover:text-fg"
             >
-              {t("findings.clearFilters")}
+              <X className="size-3.5" />
             </button>
-          ) : null}
-          <span className="ml-auto text-xs text-muted-foreground sm:ml-2">
-            {data ? tp("findings.count", data.total) : "…"}
           </span>
-        </div>
-      </Card>
+        )}
+        {anyFilter && (
+          <Button variant="tertiary" size="text" onClick={clearFilters} className="px-1">
+            {t("findings.clearFilters")}
+          </Button>
+        )}
 
-      {/* ---- dense table (md+) ---- */}
-      <Card className={cn("overflow-hidden p-0 transition-opacity", isFetching && !isLoading && "opacity-70")}>
+      </div>
+
+      {/* ---- the table ---- */}
+      <Panel className={cn("overflow-hidden p-0 transition-opacity duration-base", isFetching && !isLoading && "opacity-70")}>
         {isLoading ? (
-          <div className="space-y-2 p-4">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <Skeleton key={i} className="h-12" />
+          <div className="divide-y divide-line" aria-busy>
+            {Array.from({ length: 10 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-4 px-5 py-4">
+                <Skeleton className="h-6 w-24" />
+                <Skeleton className="h-4 w-8" />
+                <Skeleton className="h-4 flex-1" />
+                <Skeleton className="h-4 w-32" />
+              </div>
             ))}
           </div>
         ) : data && data.items.length === 0 ? (
-          <div className="py-16 text-center text-sm text-muted-foreground">{t("findings.noMatch")}</div>
+          <StateBlock icon={SearchX} title={t("findings.noMatch")} text={t("findings.emptyHint")}>
+            <Button variant="tertiary" size="text" onClick={clearFilters}>
+              {t("findings.clearFilters")}
+            </Button>
+          </StateBlock>
         ) : (
           <>
-            <div className="hidden max-h-[calc(100vh-290px)] overflow-auto md:block">
-              <table className="w-full text-left text-sm">
-                <thead className="sticky top-0 z-10 bg-popover text-[11px] uppercase tracking-wider text-muted-foreground">
-                  <tr className="border-b border-fg/10">
-                    <th className="px-4 py-3 font-medium">{t("findings.th.level")}</th>
-                    <th className="px-2 py-3 font-medium">{t("findings.th.risk")}</th>
-                    <th className="px-2 py-3 font-medium">{t("findings.th.finding")}</th>
-                    <th className="px-2 py-3 font-medium">{t("findings.th.object")}</th>
-                    <th className="px-2 py-3 font-medium">{t("findings.th.category")}</th>
-                    <th className="px-2 py-3 font-medium">{t("findings.th.weight")}</th>
-                    <th className="px-4 py-3 font-medium">{t("findings.th.mitre")}</th>
+            <div className="hidden max-h-[calc(100vh-15rem)] overflow-auto md:block">
+              <table className="w-full table-fixed text-left text-13">
+                <thead className="sticky top-0 z-10 bg-raised">
+                  <tr className="border-b border-line">
+                    {COLUMNS.map((c) => {
+                      const active = sort === c.sort;
+                      return (
+                        <th
+                          key={c.key}
+                          className={cn("py-2.5 pr-3 font-medium", c.className)}
+                          aria-sort={active ? (order === "desc" ? "descending" : "ascending") : "none"}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => sortBy(c.sort)}
+                            aria-label={t("findings.sortAria", { name: t(c.label) })}
+                            className={cn("eyebrow inline-flex items-center gap-1 transition-colors duration-fast hover:text-fg", active && "text-fg")}
+                          >
+                            {t(c.label)}
+                            {active && (order === "desc" ? <ArrowDown className="size-3" /> : <ArrowUp className="size-3" />)}
+                          </button>
+                        </th>
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody>
@@ -231,61 +313,66 @@ export default function Findings() {
                         tabIndex={0}
                         onClick={() => setSelected(f)}
                         onKeyDown={(e) => onRowKey(e, i, f)}
-                        initial={i < 30 ? { opacity: 0, y: 6 } : false}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: Math.min(i, 30) * 0.018 }}
-                        className="cursor-pointer border-b border-fg/[0.04] outline-none transition hover:bg-fg/[0.03] focus-visible:bg-primary/[0.06]"
+                        initial={i < 14 ? { opacity: 0 } : false}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: DUR.base, ease: EASE, delay: Math.min(i, 14) * 0.025 }}
+                        className="cursor-pointer border-b border-line outline-none transition-colors duration-fast last:border-0 hover:bg-fg/[0.03] focus-visible:bg-fg/[0.05]"
                       >
-                        <td className="px-4 py-2.5">
-                          <RiskBadge level={f.level} />
+                        <td className="py-3 pl-5 pr-3 align-top">
+                          <RiskChip level={f.level} />
                         </td>
-                        <td className="px-2 py-2.5">
-                          <ScoreChip score={f.score} level={f.level} />
+                        <td className="py-3 pr-3 align-top">
+                          <ScoreCell score={f.score} level={f.level} className="mt-0.5" />
                         </td>
-                        <td className="max-w-[420px] px-2 py-2.5">
-                          <div className="truncate font-medium text-foreground">{f.title}</div>
-                          <div className="font-mono text-[11px] text-muted-foreground">{f.rule_id}</div>
+                        <td className="py-3 pr-3 align-top">
+                          <div className="truncate text-14 text-fg">{f.title}</div>
+                          <div className="truncate font-mono text-12 text-fg-3">
+                            {f.rule_id}
+                            {f.mitre.length > 0 && ` · ${f.mitre.join(", ")}`}
+                          </div>
                         </td>
-                        <td className="px-2 py-2.5">
-                          <div className="flex items-center gap-2">
-                            <TypeIcon className="size-4 shrink-0 text-muted-foreground" />
+                        <td className="py-3 pr-3 align-top">
+                          <div className="flex min-w-0 items-start gap-2">
+                            <TypeIcon className="mt-0.5 size-4 shrink-0 text-fg-3" aria-hidden />
                             <div className="min-w-0">
-                              <div className="max-w-[220px] truncate font-mono text-[13px]">{f.object_name}</div>
-                              <div className="text-[11px] text-muted-foreground">{objectTypeName(f.object_type)}</div>
+                              <div className="truncate font-mono text-fg">{f.object_name}</div>
+                              <div className="truncate text-12 text-fg-3">{objectTypeName(f.object_type)}</div>
                             </div>
                           </div>
                         </td>
-                        <td className="px-2 py-2.5">
-                          <span className="inline-flex items-center gap-1.5 text-[13px] text-muted-foreground">
-                            <CatIcon className="size-3.5" /> {categoryName(f.category)}
+                        <td className="hidden py-3 pr-3 align-top xl:table-cell">
+                          <span className="inline-flex items-center gap-1.5 text-fg-2">
+                            <CatIcon className="size-3.5 text-fg-3" aria-hidden /> {categoryName(f.category)}
                           </span>
                         </td>
-                        <td className="px-2 py-2.5">
-                          <div className="flex items-center gap-2">
-                            <div className="h-1.5 w-16 overflow-hidden rounded-full bg-fg/[0.06]">
-                              <div className="h-full rounded-full bg-primary" style={{ width: `${f.rule_weight * 100}%` }} />
-                            </div>
-                            <span className="font-mono text-[11px] text-muted-foreground num">{f.rule_weight.toFixed(2)}</span>
+                        <td className="hidden py-3 pr-3 align-top lg:table-cell">
+                          <div className="mt-1 flex items-center gap-2">
+                            <span className="h-1 w-12 overflow-hidden rounded-full bg-fg/[0.08]">
+                              <span className="block h-full rounded-full bg-fg-3" style={{ width: `${f.rule_weight * 100}%` }} />
+                            </span>
+                            <span className="font-mono text-12 text-fg-2">{f.rule_weight.toFixed(2)}</span>
                           </div>
                         </td>
-                        <td className="px-4 py-2.5 font-mono text-[11px] text-violet-700/80 dark:text-violet-200/80">{f.mitre.join(", ") || "—"}</td>
+                        <td className="hidden py-3 pr-5 align-top font-mono text-12 text-fg-3 2xl:table-cell" title={fmtDateTime(f.first_seen)}>
+                          <span className="mt-1 block">{fmtDate(f.first_seen)}</span>
+                        </td>
                       </motion.tr>
                     );
                   })}
                 </tbody>
               </table>
             </div>
-            {/* ---- cards (phones) ---- */}
-            <ul className="divide-y divide-fg/[0.05] md:hidden">
+            {/* ---- phones: the same rows as a list ---- */}
+            <ul className="divide-y divide-line md:hidden">
               {data?.items.map((f) => (
                 <li key={f.id}>
-                  <button type="button" onClick={() => setSelected(f)} className="w-full px-4 py-3 text-left">
+                  <button type="button" onClick={() => setSelected(f)} className="w-full px-4 py-3 text-left transition-colors duration-fast active:bg-fg/[0.04]">
                     <div className="flex items-center justify-between gap-2">
-                      <RiskBadge level={f.level} />
-                      <ScoreChip score={f.score} level={f.level} />
+                      <RiskChip level={f.level} />
+                      <ScoreCell score={f.score} level={f.level} />
                     </div>
-                    <div className="mt-1.5 text-sm font-medium">{f.title}</div>
-                    <div className="mt-0.5 font-mono text-[11px] text-muted-foreground">
+                    <div className="mt-2 text-14 text-fg">{f.title}</div>
+                    <div className="mt-0.5 truncate font-mono text-12 text-fg-3">
                       {f.object_name} · {f.rule_id}
                     </div>
                   </button>
@@ -294,10 +381,8 @@ export default function Findings() {
             </ul>
           </>
         )}
-      </Card>
-      <p className="px-1 text-[11px] text-muted-foreground">
-        {t("findings.tip")}
-      </p>
+      </Panel>
+      <p className="px-1 text-12 text-fg-3">{t("findings.tip")}</p>
       <FindingDetailSheet finding={selected} onOpenChange={(o) => !o && setSelected(null)} />
     </div>
   );

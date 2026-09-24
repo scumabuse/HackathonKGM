@@ -1,7 +1,8 @@
-import { Check, Copy, TerminalSquare } from "lucide-react";
+import { Check, Copy } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
+import { Button } from "./ui/button";
 
 async function copyText(text: string): Promise<boolean> {
   try {
@@ -21,18 +22,19 @@ async function copyText(text: string): Promise<boolean> {
   }
 }
 
-/** Copyable PowerShell recommendation. Text only — the tool never executes anything. */
+/** Copyable PowerShell recommendation — text only, the tool never executes anything. The copy action is quiet. */
 export function CodeBlock({ code }: { code: string }) {
   const [copied, setCopied] = useState(false);
   const { t } = useI18n();
   return (
-    <div className="overflow-hidden rounded-xl border border-fg/[0.08] bg-inset">
-      <div className="flex items-center justify-between border-b border-fg/[0.06] px-3 py-1.5">
-        <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
-          <TerminalSquare className="size-3.5" /> {t("code.label")}
-        </span>
-        <button
-          type="button"
+    <div className="rounded-control bg-base">
+      <div className="flex items-center justify-between gap-3 py-1 pl-3 pr-1">
+        <span className="truncate text-12 text-fg-3">{t("code.label")}</span>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 px-2 text-12"
+          aria-label={t("code.copyAria")}
           onClick={async () => {
             if (await copyText(code)) {
               setCopied(true);
@@ -40,14 +42,12 @@ export function CodeBlock({ code }: { code: string }) {
               setTimeout(() => setCopied(false), 1600);
             }
           }}
-          className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground transition hover:bg-fg/10 hover:text-foreground"
-          aria-label={t("code.copyAria")}
         >
-          {copied ? <Check className="size-3.5 text-risk-fg-low" /> : <Copy className="size-3.5" />}
+          {copied ? <Check /> : <Copy />}
           {copied ? t("code.copied") : t("code.copy")}
-        </button>
+        </Button>
       </div>
-      <pre className="whitespace-pre-wrap break-words p-3 font-mono text-[12.5px] leading-relaxed text-code">
+      <pre className="whitespace-pre-wrap break-words px-3 pb-3 font-mono text-13 text-fg-2">
         <code>{code}</code>
       </pre>
     </div>

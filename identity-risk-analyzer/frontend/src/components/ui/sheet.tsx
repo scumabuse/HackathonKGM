@@ -17,20 +17,20 @@ export function SheetContent({
   const { t } = useI18n();
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+      <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
       <DialogPrimitive.Content
         className={cn(
-          "fixed inset-y-0 z-50 flex w-full flex-col overflow-y-auto border-fg/10 bg-popover shadow-2xl data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:duration-200 data-[state=open]:duration-300",
+          "fixed inset-y-0 z-50 flex w-full flex-col overflow-y-auto bg-overlay shadow-overlay duration-base data-[state=open]:animate-in data-[state=closed]:animate-out",
           side === "right"
-            ? "right-0 border-l sm:max-w-xl data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right"
-            : "left-0 max-w-[18rem] border-r data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left",
+            ? "right-0 sm:max-w-[560px] data-[state=closed]:slide-out-to-right-8 data-[state=open]:slide-in-from-right-8 data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
+            : "left-0 max-w-[17rem] data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left",
           className,
         )}
         {...p}
       >
         {children}
         <DialogPrimitive.Close
-          className="absolute right-4 top-4 rounded-lg p-1.5 text-muted-foreground transition hover:bg-fg/10 hover:text-foreground"
+          className="absolute right-4 top-4 grid size-8 place-items-center rounded-control text-fg-3 transition-colors duration-fast hover:bg-fg/[0.06] hover:text-fg"
           aria-label={t("common.close")}
         >
           <X className="size-4" />

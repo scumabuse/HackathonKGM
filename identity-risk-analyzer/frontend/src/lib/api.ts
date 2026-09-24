@@ -62,7 +62,8 @@ function qs(params: Record<string, string | number | undefined | null>): string 
 
 export const api = {
   health: () => req<Health>("/health"),
-  dashboard: (scanId = "latest") => req<Dashboard>(`/dashboard/${scanId}${qs({ lang: apiLang })}`),
+  /** `top` = how many riskiest objects to include (server default 8, max 50). */
+  dashboard: (scanId = "latest", top?: number) => req<Dashboard>(`/dashboard/${scanId}${qs({ top, lang: apiLang })}`),
   scans: () => req<ScanSummary[]>("/scans?limit=60"),
   findings: (f: FindingFilters & { limit?: number }, scanId = "latest") =>
     req<FindingsPage>(`/findings${qs({ scan_id: scanId, limit: 2000, ...f, lang: apiLang })}`),

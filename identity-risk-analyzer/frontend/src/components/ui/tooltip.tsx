@@ -16,14 +16,14 @@ export function Tip({
   className?: string;
 }) {
   return (
-    <TooltipPrimitive.Root delayDuration={150}>
+    <TooltipPrimitive.Root delayDuration={200}>
       <TooltipPrimitive.Trigger asChild>{children}</TooltipPrimitive.Trigger>
       <TooltipPrimitive.Portal>
         <TooltipPrimitive.Content
           side={side}
           sideOffset={6}
           className={cn(
-            "z-[60] max-w-xs rounded-lg border border-fg/10 bg-popover px-3 py-2 text-xs leading-relaxed text-foreground shadow-xl animate-in fade-in-0 zoom-in-95",
+            "z-[60] max-w-xs rounded-control bg-overlay px-3 py-2 text-12 text-fg-2 shadow-overlay animate-in fade-in-0 duration-fast",
             className,
           )}
         >

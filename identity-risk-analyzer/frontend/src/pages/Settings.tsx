@@ -1,18 +1,20 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { History, RotateCcw, Save, ShieldCheck } from "lucide-react";
+import { RotateCcw, Save } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { MonoDigits } from "@/components/MonoDigits";
 import { ErrorState } from "@/components/States";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader } from "@/components/ui/card";
+import { Panel, PanelHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { DUR, EASE } from "@/lib/motion";
 import { CATEGORIES, CATEGORY_ICON } from "@/lib/risk";
 import type { AnalysisSettings, RuleSetting, Thresholds } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -39,15 +41,13 @@ const CUTOFFS = [
 
 function Field({ label, hint, value, children }: { label: string; hint?: string; value: ReactNode; children: ReactNode }) {
   return (
-    <div className="space-y-1">
-      <div className="flex items-baseline justify-between gap-3">
-        <div className="min-w-0">
-          <div className="text-sm">{label}</div>
-          {hint && <div className="text-[11px] text-muted-foreground">{hint}</div>}
-        </div>
-        <div className="shrink-0 font-mono text-sm num text-primary">{value}</div>
+    <div>
+      <div className="flex items-baseline justify-between gap-4">
+        <span className="text-14 text-fg">{label}</span>
+        <span className="shrink-0 text-14 text-fg">{value}</span>
       </div>
-      {children}
+      {hint && <p className="text-12 text-fg-3">{hint}</p>}
+      <div className="mt-1.5">{children}</div>
     </div>
   );
 }
@@ -56,20 +56,29 @@ function RuleRow({ r, weight, enabled, onWeight, onEnabled }: { r: RuleSetting; 
   const { t } = useI18n();
   const changed = Math.abs(weight - r.default_weight) > 1e-9;
   return (
-    <div className={cn("grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1 py-2.5 sm:grid-cols-[minmax(0,1fr)_180px_52px_auto]", !enabled && "opacity-50")}>
+    <div className={cn("grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1.5 py-3 sm:grid-cols-[minmax(0,1fr)_9rem_2.75rem_auto]", !enabled && "opacity-50")}>
       <div className="min-w-0">
-        <div className="truncate text-sm">{r.name}</div>
-        <div className="font-mono text-[10.5px] text-muted-foreground">
+        <div className="truncate text-14 text-fg">{r.name}</div>
+        <div className="flex items-center gap-2 font-mono text-12 text-fg-3">
           {r.id}
           {changed && (
-            <button type="button" onClick={() => onWeight(r.default_weight)} className="ml-2 text-primary hover:underline">
+            <button type="button" onClick={() => onWeight(r.default_weight)} className="font-sans text-fg-2 underline-offset-2 hover:text-fg hover:underline">
               {t("settings.reset", { w: r.default_weight.toFixed(2) })}
             </button>
           )}
         </div>
       </div>
-      <Slider className="order-3 col-span-2 sm:order-none sm:col-span-1" min={0} max={1} step={0.05} value={[weight]} onValueChange={([v]) => onWeight(v)} disabled={!enabled} aria-label={t("settings.weightAria", { name: r.name })} />
-      <div className={cn("hidden text-right font-mono text-sm num sm:block", changed ? "text-primary" : "text-muted-foreground")}>{weight.toFixed(2)}</div>
+      <Slider
+        className="order-3 col-span-2 sm:order-none sm:col-span-1"
+        min={0}
+        max={1}
+        step={0.05}
+        value={[weight]}
+        onValueChange={([v]) => onWeight(v)}
+        disabled={!enabled}
+        aria-label={t("settings.weightAria", { name: r.name })}
+      />
+      <div className={cn("hidden text-right font-mono text-13 sm:block", changed ? "text-fg" : "text-fg-3")}>{weight.toFixed(2)}</div>
       <Switch checked={enabled} onCheckedChange={onEnabled} aria-label={t("settings.enabledAria", { name: r.name })} />
     </div>
   );
@@ -129,9 +138,9 @@ export default function Settings() {
   if (error) return <ErrorState error={error} />;
   if (isLoading || !data || !draft)
     return (
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Skeleton className="h-[520px]" />
-        <Skeleton className="h-[520px]" />
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2" aria-busy>
+        <Skeleton className="h-[560px] rounded-card" />
+        <Skeleton className="h-[560px] rounded-card" />
       </div>
     );
 
@@ -153,165 +162,167 @@ export default function Settings() {
   const levelsValid = draft.levels.critical > draft.levels.high && draft.levels.high > draft.levels.medium;
 
   return (
-    <div className="space-y-4 pb-24">
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <div className="min-w-0 space-y-4">
-          <Card>
-            <CardHeader title={t("settings.thresholds")} subtitle={t("settings.thresholdsSub")} />
-            <div className="space-y-5">
+    <div className="space-y-6 pb-24">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <div className="min-w-0 space-y-6">
+          <Panel>
+            <PanelHeader title={t("settings.thresholds")} subtitle={t("settings.thresholdsSub")} />
+            <div className="space-y-6">
               {THRESHOLDS.map((th) => (
                 <Field
                   key={th.key}
                   label={t(`settings.fields.${th.key}`)}
                   hint={t(`settings.fields.${th.key}Hint`)}
-                  value={t(`settings.units.${th.unit}`, { n: draft.thresholds[th.key] })}
+                  value={<MonoDigits text={t(`settings.units.${th.unit}`, { n: draft.thresholds[th.key] })} />}
                 >
                   <Slider min={th.min} max={th.max} step={th.step} value={[draft.thresholds[th.key]]} onValueChange={([v]) => setT(th.key, v)} aria-label={t(`settings.fields.${th.key}`)} />
                 </Field>
               ))}
             </div>
-          </Card>
+          </Panel>
 
-          <Card>
-            <CardHeader title={t("settings.scoring")} subtitle={t("settings.scoringSub")} />
-            <div className="space-y-5">
+          <Panel>
+            <PanelHeader title={t("settings.scoring")} subtitle={t("settings.scoringSub")} />
+            <div className="space-y-6">
               {CUTOFFS.map(({ lvl, label }) => (
-                <Field key={lvl} label={t(label)} value={`≥ ${draft.levels[lvl]}`}>
+                <Field key={lvl} label={t(label)} value={<span className="font-mono">≥ {draft.levels[lvl]}</span>}>
                   <Slider min={1} max={100} step={1} value={[draft.levels[lvl]]} onValueChange={([v]) => setDraft({ ...draft, levels: { ...draft.levels, [lvl]: v } })} aria-label={t(label)} />
                 </Field>
               ))}
-              {!levelsValid && <p className="text-xs text-risk-fg-critical">{t("settings.cutoffError")}</p>}
-              <Field label={t("settings.kLabel")} hint={t("settings.kHint")} value={`× ${draft.k_tier0.toFixed(2)}`}>
+              {!levelsValid && <p className="text-13 text-fg">{t("settings.cutoffError")}</p>}
+              <Field label={t("settings.kLabel")} hint={t("settings.kHint")} value={<span className="font-mono">× {draft.k_tier0.toFixed(2)}</span>}>
                 <Slider min={1} max={1.5} step={0.05} value={[draft.k_tier0]} onValueChange={([v]) => setDraft({ ...draft, k_tier0: Math.round(v * 100) / 100 })} aria-label={t("settings.kLabel")} />
               </Field>
             </div>
-          </Card>
+          </Panel>
 
-          <Card>
-            <CardHeader title={t("settings.heuristics")} subtitle={t("settings.heuristicsSub")} />
-            <div className="space-y-3">
-              <label className="block space-y-1">
-                <span className="text-sm">{t("settings.prefixes")}</span>
+          <Panel>
+            <PanelHeader title={t("settings.heuristics")} subtitle={t("settings.heuristicsSub")} />
+            <div className="space-y-5">
+              <label className="block space-y-1.5">
+                <span className="text-14 text-fg">{t("settings.prefixes")}</span>
                 <Input
                   value={draft.service.name_prefixes.join(", ")}
                   onChange={(e) => setDraft({ ...draft, service: { ...draft.service, name_prefixes: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) } })}
-                  className="font-mono"
+                  className="font-mono text-13"
                 />
               </label>
-              <label className="block space-y-1">
-                <span className="text-sm">{t("settings.ouMarkers")}</span>
+              <label className="block space-y-1.5">
+                <span className="text-14 text-fg">{t("settings.ouMarkers")}</span>
                 <Input
                   value={draft.service.ou_markers.join(", ")}
                   onChange={(e) => setDraft({ ...draft, service: { ...draft.service, ou_markers: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) } })}
-                  className="font-mono"
+                  className="font-mono text-13"
                 />
               </label>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">{t("settings.spnOnUser")}</span>
+              <label className="flex items-center justify-between gap-4">
+                <span className="text-14 text-fg">{t("settings.spnOnUser")}</span>
                 <Switch checked={draft.service.spn_on_user} onCheckedChange={(v) => setDraft({ ...draft, service: { ...draft.service, spn_on_user: v } })} />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">{t("settings.includeGmsa")}</span>
+              </label>
+              <label className="flex items-center justify-between gap-4">
+                <span className="text-14 text-fg">{t("settings.includeGmsa")}</span>
                 <Switch checked={draft.service.include_gmsa} onCheckedChange={(v) => setDraft({ ...draft, service: { ...draft.service, include_gmsa: v } })} />
-              </div>
+              </label>
             </div>
-          </Card>
+          </Panel>
         </div>
 
-        <div className="min-w-0 space-y-4">
-          <Card>
-            <CardHeader title={t("settings.ruleWeights")} subtitle={t("settings.ruleWeightsSub")} />
-            <div className="space-y-5">
+        <div className="min-w-0 space-y-6">
+          <Panel>
+            <PanelHeader title={t("settings.ruleWeights")} subtitle={t("settings.ruleWeightsSub")} />
+            <div className="space-y-6">
               {CATEGORIES.map((cat) => {
                 const Icon = CATEGORY_ICON[cat];
                 const rules = data.rules.filter((r) => r.category === cat);
                 return (
-                  <div key={cat}>
-                    <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                      <Icon className="size-3.5 text-primary" /> {category(cat)}
-                    </div>
-                    <div className="divide-y divide-fg/[0.05]">
+                  <section key={cat}>
+                    <h3 className="eyebrow flex items-center gap-2 border-b border-line pb-2">
+                      <Icon className="size-3.5" aria-hidden /> {category(cat)}
+                    </h3>
+                    <div className="divide-y divide-line">
                       {rules.map((r) => (
                         <RuleRow key={r.id} r={r} weight={weightOf(r)} enabled={enabledOf(r)} onWeight={(w) => setWeight(r, w)} onEnabled={(e) => setEnabled(r, e)} />
                       ))}
                     </div>
-                  </div>
+                  </section>
                 );
               })}
             </div>
-          </Card>
+          </Panel>
 
-          <Card>
-            <CardHeader title={t("settings.posture")} subtitle={t("settings.postureSub")} />
-            <ul className="space-y-2 text-[13px]">
-              <li className="flex gap-2">
-                <ShieldCheck className="mt-0.5 size-4 shrink-0 text-risk-fg-low" /> {t("settings.posture1")}
-              </li>
-              <li className="flex gap-2">
-                <ShieldCheck className="mt-0.5 size-4 shrink-0 text-risk-fg-low" /> {t("settings.posture2")}
-              </li>
-              <li className="flex gap-2">
-                <ShieldCheck className="mt-0.5 size-4 shrink-0 text-risk-fg-low" /> {t("settings.posture3")}
-              </li>
-              <li className="flex gap-2 font-mono text-[12px] text-muted-foreground">
-                {t("settings.collectorLine", {
-                  source: health?.config.source ?? "…",
-                  ldap: health?.config.ldap_configured
-                    ? t("settings.ldapAs", { url: health.config.ldap_url ?? "", user: health.config.ldap_bind_user ?? "" })
-                    : t("settings.ldapNotConfigured"),
-                })}
-              </li>
-            </ul>
-          </Card>
+          <Panel>
+            <PanelHeader title={t("topbar.collector")} />
+            <dl className="space-y-2.5 text-13">
+              <div className="flex justify-between gap-4">
+                <dt className="text-fg-3">{t("settings.sourceLabel")}</dt>
+                <dd className="font-mono text-fg">{health?.config.source ?? "…"}</dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-fg-3">LDAP</dt>
+                <dd className="min-w-0 break-all text-right text-fg">
+                  {health?.config.ldap_configured ? (
+                    <span className="font-mono">{t("settings.ldapAs", { url: health.config.ldap_url ?? "", user: health.config.ldap_bind_user ?? "" })}</span>
+                  ) : (
+                    <span className="text-fg-2">{t("settings.ldapNotConfigured")}</span>
+                  )}
+                </dd>
+              </div>
+            </dl>
+          </Panel>
 
-          <Card>
-            <CardHeader title={t("settings.auditLog")} subtitle={t("settings.auditSub")} right={<History className="size-4 text-muted-foreground" />} />
-            <ul className="max-h-72 space-y-1 overflow-auto text-[12.5px]">
+          <Panel className="p-0">
+            <div className="px-6 pt-6">
+              <PanelHeader title={t("settings.auditLog")} subtitle={t("settings.auditSub")} className="mb-3" />
+            </div>
+            <ul className="max-h-80 overflow-auto pb-3 text-13">
               {audit?.map((a) => (
-                <li key={a.id} className="grid grid-cols-[150px_1fr] gap-2 rounded-lg px-2 py-1.5 hover:bg-fg/[0.03]">
-                  <span className="font-mono text-[11px] text-muted-foreground">{fmtDateTime(a.ts)}</span>
+                <li key={a.id} className="grid grid-cols-[9.5rem_1fr] gap-3 px-6 py-1.5">
+                  <span className="font-mono text-12 text-fg-3">{fmtDateTime(a.ts)}</span>
                   <span className="min-w-0 truncate">
-                    <span className="font-mono text-primary">{a.action}</span> <span className="text-muted-foreground">{t("settings.by")}</span> {a.actor}
-                    {a.target && <span className="font-mono text-muted-foreground"> · {a.target.slice(0, 8)}</span>}
+                    <span className="font-mono text-12 text-fg">{a.action}</span> <span className="text-fg-3">{t("settings.by")}</span>{" "}
+                    <span className="text-fg-2">{a.actor}</span>
+                    {a.target && <span className="font-mono text-12 text-fg-3"> · {a.target.slice(0, 8)}</span>}
                   </span>
                 </li>
               ))}
             </ul>
-          </Card>
+          </Panel>
+
+          {!dirty && (
+            <div className="flex justify-end">
+              <Button variant="tertiary" size="text" onClick={() => reset.mutate()} disabled={reset.isPending}>
+                <RotateCcw /> {t("settings.restoreDefaults")}
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* ---- sticky save bar ---- */}
+      {/* ---- save bar: the page's single primary action ---- */}
       <AnimatePresence>
         {dirty && (
           <motion.div
-            initial={{ y: 80, opacity: 0 }}
+            initial={{ y: 16, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 80, opacity: 0 }}
-            className="fixed inset-x-0 bottom-4 z-40 mx-auto flex w-[min(640px,calc(100%-2rem))] flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary/30 bg-popover/95 px-4 py-3 shadow-2xl backdrop-blur-xl"
+            exit={{ y: 16, opacity: 0 }}
+            transition={{ duration: DUR.base, ease: EASE }}
+            className="fixed inset-x-0 bottom-6 z-40 mx-auto flex w-[min(620px,calc(100%-2rem))] flex-wrap items-center justify-between gap-3 rounded-card bg-overlay px-4 py-3 shadow-overlay"
           >
-            <span className="text-sm">{t("settings.unsaved")}</span>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="ghost" size="sm" onClick={() => setDraft(structuredClone(data.settings))}>
+            <span className="text-14 text-fg">{t("settings.unsaved")}</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="tertiary" size="sm" onClick={() => setDraft(structuredClone(data.settings))}>
                 {t("settings.discard")}
               </Button>
               <Button variant="secondary" size="sm" disabled={!levelsValid || save.isPending} onClick={() => save.mutate(false)}>
                 <Save /> {t("settings.save")}
               </Button>
-              <Button size="sm" disabled={!levelsValid || save.isPending} onClick={() => save.mutate(true)}>
+              <Button variant="primary" size="sm" disabled={!levelsValid || save.isPending} onClick={() => save.mutate(true)}>
                 <RotateCcw /> {t("settings.saveRescore")}
               </Button>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
-      {!dirty && (
-        <div className="flex justify-end">
-          <Button variant="ghost" size="sm" onClick={() => reset.mutate()} disabled={reset.isPending}>
-            <RotateCcw /> {t("settings.restoreDefaults")}
-          </Button>
-        </div>
-      )}
     </div>
   );
 }

@@ -2,18 +2,22 @@ import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { useLocation, useOutlet } from "react-router-dom";
 import { ScanProgress } from "@/components/ScanProgress";
-import { Backdrop } from "@/components/ui/backdrop";
-import { useI18n, type TKey } from "@/lib/i18n";
+import { pageMotion } from "@/lib/motion";
 import { Sidebar } from "./Sidebar";
-import { Topbar } from "./Topbar";
+import { Topbar, type Chrome } from "./Topbar";
 
-const TITLES: [RegExp, TKey][] = [
-  [/^\/$/, "titles.home"],
-  [/^\/dashboard/, "titles.dashboard"],
-  [/^\/findings/, "titles.findings"],
-  [/^\/accounts\//, "titles.account"],
-  [/^\/settings/, "titles.settings"],
+/**
+ * Exactly one primary action per screen:
+ *  - landing: the hero owns "Run scan", so the top bar hides it;
+ *  - findings: the toolbar owns Export (filter-aware), so the top bar hides its own;
+ *  - settings: "Save & re-score" is the primary, so "Run scan" steps down to secondary.
+ */
+const CHROME: [RegExp, Chrome][] = [
+  [/^\/$/, { run: "hidden", export: true }],
+  [/^\/findings/, { run: "primary", export: false }],
+  [/^\/settings/, { run: "secondary", export: true }],
 ];
+const DEFAULT_CHROME: Chrome = { run: "primary", export: true };
 
 /** Keeps the exiting page's element while AnimatePresence plays its exit animation. */
 function FrozenOutlet() {
@@ -23,24 +27,16 @@ function FrozenOutlet() {
 }
 
 export function PageShell() {
-  const { t } = useI18n();
   const { pathname } = useLocation();
-  const title = t(TITLES.find(([re]) => re.test(pathname))?.[1] ?? "titles.fallback");
+  const chrome = CHROME.find(([re]) => re.test(pathname))?.[1] ?? DEFAULT_CHROME;
   return (
-    <div className="flex min-h-screen">
-      <Backdrop />
+    <div className="flex min-h-screen bg-base">
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar title={title} />
-        <main className="mx-auto w-full max-w-[1440px] flex-1 px-4 py-6 sm:px-6 lg:py-8">
+        <Topbar chrome={chrome} />
+        <main className="mx-auto w-full max-w-[1280px] flex-1 px-4 py-6 sm:px-8 sm:py-8">
           <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={pathname}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-            >
+            <motion.div key={pathname} {...pageMotion}>
               <FrozenOutlet />
             </motion.div>
           </AnimatePresence>

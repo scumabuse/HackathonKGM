@@ -131,7 +131,8 @@ export function ModuleList({ onNavigate }: { onNavigate?: () => void }) {
     <div>
       <div className="tech mb-1.5 px-3 text-fg-3/80">{t("nav.modules")}</div>
       <ul className="space-y-0.5">
-        {MODULES.map(({ label, icon: Icon, live }) => {
+        {/* demo build: only the module that exists is listed (the roadmap lives on the home page) */}
+        {MODULES.filter((m) => m.live).map(({ label, icon: Icon, live }) => {
           // module names are untranslated brand names ending in "Radar"; under the "Modules" heading the suffix is noise
           const name = t(label).replace(/ Radar$/, "");
           return (

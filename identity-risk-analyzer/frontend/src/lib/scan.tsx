@@ -27,13 +27,10 @@ interface ScanCtx {
 const Ctx = createContext<ScanCtx | null>(null);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+// Demo build: the source switch is not shown in the UI, so every scan runs on the demo domain (mock).
+// (Live LDAP stays available through the API / .env; a stale "ldap" choice in storage must not stick.)
 function readSource(): Source {
-  try {
-    const v = localStorage.getItem("ira.source");
-    return v === "ldap" ? "ldap" : "mock";
-  } catch {
-    return "mock";
-  }
+  return "mock";
 }
 
 export function ScanProvider({ children }: { children: ReactNode }) {

@@ -9,7 +9,7 @@ import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { useScan } from "@/lib/scan";
 import { useTour } from "@/lib/tour";
-import { cn, sourceKind } from "@/lib/utils";
+import { sourceKind } from "@/lib/utils";
 import { LangSwitcher, ThemeToggle } from "./Preferences";
 import { Brand, ModuleList, NavList } from "./Sidebar";
 
@@ -17,44 +17,6 @@ import { Brand, ModuleList, NavList } from "./Sidebar";
 export interface Chrome {
   run: "primary" | "secondary" | "hidden";
   export: boolean;
-}
-
-function SourceToggle() {
-  const { t } = useI18n();
-  const { source, setSource, running } = useScan();
-  const { data: health } = useQuery({ queryKey: ["health"], queryFn: api.health, staleTime: 60_000 });
-  const liveReady = !!health?.config.ldap_configured;
-  return (
-    <div className="flex h-9 items-center rounded-control bg-fg/[0.05] p-0.5 text-13" role="radiogroup" aria-label={t("topbar.collector")}>
-      {(["mock", "ldap"] as const).map((s) => {
-        const disabled = s === "ldap" && !liveReady;
-        const btn = (
-          <button
-            key={s}
-            type="button"
-            role="radio"
-            aria-checked={source === s}
-            disabled={running || disabled}
-            onClick={() => setSource(s)}
-            className={cn(
-              "h-8 rounded-inner px-3 transition-colors duration-fast disabled:cursor-not-allowed",
-              source === s ? "bg-raised text-fg shadow-panel" : "text-fg-3 hover:text-fg",
-              disabled && "opacity-50",
-            )}
-          >
-            {t(s === "mock" ? "common.mock" : "common.liveLdap")}
-          </button>
-        );
-        return disabled ? (
-          <Tip key={s} content={t("topbar.liveNeedsConfig")}>
-            <span>{btn}</span>
-          </Tip>
-        ) : (
-          btn
-        );
-      })}
-    </div>
-  );
 }
 
 /** The ONE place the tool's safety posture is stated (details in the tooltip). */
@@ -135,9 +97,6 @@ export function Topbar({ chrome }: { chrome: Chrome }) {
         <div className="min-w-0 flex-1">
           <ScanMeta />
         </div>
-        <div className="hidden xl:block">
-          <SourceToggle />
-        </div>
         <div className="flex items-center">
           <LangSwitcher />
           <ThemeToggle />
@@ -162,10 +121,6 @@ export function Topbar({ chrome }: { chrome: Chrome }) {
             <Brand />
           </div>
           <NavList onNavigate={() => setMenuOpen(false)} />
-          <div className="px-3 xl:hidden">
-            <div className="eyebrow mb-2">{t("topbar.collector")}</div>
-            <SourceToggle />
-          </div>
           <ModuleList onNavigate={() => setMenuOpen(false)} />
           <div className="mt-auto px-3 text-12 text-fg-3 md:hidden">
             <ReadOnlyNote />

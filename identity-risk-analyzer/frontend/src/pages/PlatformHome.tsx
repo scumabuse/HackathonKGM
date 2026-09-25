@@ -423,7 +423,7 @@ export default function PlatformHome() {
   return (
     <motion.div variants={listMotion} initial="hidden" animate="show" className="space-y-16 pb-8">
       {/* ------------------------------------------------------------ hero */}
-      <section className="relative grid grid-cols-[minmax(0,1fr)] items-center gap-10 overflow-x-clip lg:grid-cols-[minmax(0,1fr)_minmax(0,520px)] lg:gap-12">
+      <section className="relative grid grid-cols-[minmax(0,1fr)] items-center gap-10 overflow-x-clip xl:grid-cols-[minmax(0,1fr)_minmax(0,460px)] xl:gap-12 2xl:grid-cols-[minmax(0,1fr)_minmax(0,520px)]">
         <motion.div variants={itemMotion} className="max-w-xl">
           <div className="kicker">{t("home.eyebrow")}</div>
           <h1 className="display mt-5 text-40 leading-[1.12] tracking-[-0.02em]" aria-live="polite" data-tour="headline">
